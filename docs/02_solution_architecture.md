@@ -142,18 +142,18 @@ Employee-360). Maps onto the Phase 1 / Phase 2 / CAP split in
 |---|---|---|---|---|
 | **1** | ✅ **Done** — pulled, activated clean, preview verified with real data (40,529 issues) | Data Quality Overview — Missing Email / Cost Center / Position / Bank | §10 (G) | None |
 | **2** | ✅ **Done** — activation hit T1 (`USTYP` conversion exit), fixed, preview verified (4,860 users) | Security Monitor — locked users, password age, technical users | §19 (P) | None |
-| **3** | 🔄 Pushed, pull pending (client-side VPN issue — will pull Stages 3–5 together) | Background Jobs Monitor | §14 (K) | None |
-| **4** | 🔄 Pushed, pull pending (this commit) | **Reordered** — Transport Monitor, local system only (was: Foundation config tables) | §20 (Q) | None |
-| **5** | 🔄 Pushed, pull pending (this commit) | **Reordered** — Headcount Overview by Company Code × Personnel Area (was: Integration Monitoring) | §16 (M, partial) | None |
-| 6 | Not started | Foundation — interface catalog, watched-jobs catalog, check/alert config, snapshot history table | §21 (R) | `ZTWR_CFG_IFACE`, `ZTWR_CFG_JOB`, `ZTWR_CFG_ALERT`, `ZTWR_SNAPSHOT` |
-| 7 | Not started | Integration Monitoring + Inbound Message Monitor (reads Stage 6 catalog) | §6 (C), §7 (D) | `ZTWR_ALERT` (alert store) |
+| **3** | ✅ **Done** — pulled, activated, previewed clean (client tested all of 3–5 together) | Background Jobs Monitor | §14 (K) | None |
+| **4** | ✅ **Done** | **Reordered** — Transport Monitor, local system only (was: Foundation config tables) | §20 (Q) | None |
+| **5** | ✅ **Done** | **Reordered** — Headcount Overview by Company Code × Personnel Area (was: Integration Monitoring) | §16 (M, partial) | None |
+| **6** | 🔄 Pushed, pull pending (this commit) | Foundation, narrowed — interface catalog only (`ZTWR_CFG_IFACE`). Watched-jobs catalog / alert config / snapshot history deferred until their consuming stages (Alerts, Trends) are ready | §21 (R) | `ZTWR_CFG_IFACE` |
+| 7 | **Blocked — needs data from you**, see §20 | Integration Monitoring + Inbound Message Monitor (reads Stage 6 catalog) | §6 (C), §7 (D) | `ZTWR_ALERT` (alert store) |
 | 8 | Not started | OData / Gateway Monitor | §8 (E) | None |
 | 9 | Not started | Replication Summary & Error Analysis | §9 (F) | None |
 | 10 | Not started | Remaining KPI tiles, org tree/region donut, New Joiners | §5 (B), §16 (M), §17 (N) | None |
 | 11 | Not started | Payroll basics (areas, runs, PCC-if-present) | §12 (I) | None |
 | 12 | Not started | Alerts list (display-only) + duplicate-employee / extended DQ checks | §15 (L), §10 (G) | None |
 | — | Not started | Freestyle dashboard shell assembling Stages 1–12; Fiori Elements drill-downs per entity | §21 (R) | — |
-| Phase 2 | Not started | Trends (needs Stage 6 snapshot history), Workflow + funnel, remote Transport Monitor (TMS RFC), cert/OAuth/RFC alerts, Performance panel | `01_feasibility_map.md` §25 | per section |
+| Phase 2 | Not started | Trends (needs Stage 6-family snapshot history), Workflow + funnel, remote Transport Monitor (TMS RFC), cert/OAuth/RFC alerts, Performance panel | `01_feasibility_map.md` §25 | per section |
 | CAP track | Not started | CPI MPL, SF Recruiting/Performance, ECP payroll, SF workflow | `01_feasibility_map.md` §22 | separate repo |
 
 ### Why Stages 4–5 were reordered
@@ -324,4 +324,54 @@ hierarchy/tree in a later Phase-2 stage).
 
 ## 19. Pull & activate (Stage 5)
 
-Same procedure. Preview `HeadcountOverview`.
+Same procedure. Preview `HeadcountOverview`. **Result: clean, confirmed by
+the client alongside Stages 3–4 — see `BUILD_ISSUES_LOG.md`.**
+
+## 20. What ships in this commit (Stage 6 — Foundation, narrowed)
+
+The original Stage 4 plan (§8) had four config/snapshot tables. This commit
+ships **one** — the interface catalog — narrowed for two reasons: it's the
+first use of the `TABL` object type in this repo (see the "why reordered" box
+in §8 for the risk), and the other three (watched-jobs catalog, alert config,
+snapshot history) have no consumer yet (Stage 3's Background Jobs Monitor
+already lists every job without a catalog; Alerts and Trends, the stages that
+would need them, aren't built yet).
+
+| Object | Type | Purpose |
+|---|---|---|
+| `ZTWR_CFG_IFACE` | Table | Interface catalog — id, name, log technique, log object (message type / service name / AIF interface), expected frequency, owner, active flag. Ships **empty**. |
+| `ZI_TWR_CFG_IFACE` | Interface CDS | Anchor, plain `select from` |
+| `ZC_TWR_CFG_IFACE` | Consumption CDS | List view for maintenance visibility |
+| `ZTWR_UI_SRVD` (extended) | Service Definition | Now exposes `InterfaceCatalog` too |
+
+Every field name is this repo's own choice (new table, not an existing SAP
+one), so there's no field-name-guessing risk the way reading `PA0001` or
+`USR02` blind would carry — the only new risk is the `TABL` XML schema itself,
+mitigated by mirroring `Utility-Class-and-Method`'s one proven `TABL` object
+(`ZAB_V1_UT_ADPT`) field-for-field in shape, reusing its exact `XFELD` data
+element for the active flag and the already-proven `BNAME` for the owner.
+
+**How to populate it**, once you have the data (see §22 / the data-collection
+doc): `SE16N` → table `ZTWR_CFG_IFACE` → create entries directly (needs a
+developer key / `S_TABU_DIS` authorization for direct table maintenance), or
+ask Basis to generate a proper maintenance dialog: `SE11` → open the table →
+**Utilities → Table Maintenance Generator** → assign an authorization group
+and function group → generates an `SM30`-style maintenance transaction. The
+generator itself isn't something abapGit serializes cleanly (same class of
+risk as the hand-written DDLX metadata extensions Employee-360 dropped at C2),
+so it's a one-time manual step, not shipped in the repo.
+
+## 21. Pull & activate (Stage 6)
+
+1. Pull, then **Activate All Inactive ABAP Development Objects** (twice if
+   needed) — this is the first `TABL` activation in this repo, so treat any
+   error here as high-priority to report verbatim.
+2. Preview `InterfaceCatalog` on `ZTWR_UI_SRVB_O4` — **0 rows is the correct,
+   clean result** (the table ships empty). A runtime error is not.
+3. Report back clean/error either way.
+
+## 22. Stage 7 — blocked, needs data
+
+Integration Monitoring can't be built without knowing which interfaces
+actually exist and how each one logs. See the dedicated collection guide:
+**[`03_stage7_data_collection.md`](03_stage7_data_collection.md)**.

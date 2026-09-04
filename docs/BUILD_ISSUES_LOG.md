@@ -93,8 +93,9 @@ in this table is unverified on this system — check SE11 before using it.
 | `PA0009` | `PERNR SUBTY BANKL BANKN BKONT IBAN BEGDA ENDDA` (subtype `0` = main bank) |
 | `PA0006` | `PERNR SUBTY STRAS ORT01 PSTLZ LAND1 BEGDA ENDDA` (subtype `1` = permanent residence) |
 | `USR02` | `BNAME USTYP CLASS UFLAG ERDAT TRDAT GLTGV GLTGB` — field **names** all activated fine (T1 was a runtime rendering error, not an activation error). `USTYP` needs `cast( … as abap.char(1) )` before it reaches OData (T1). `CLASS` confirmed clean (renders, no conversion-exit error). |
-| `TBTCO` | `JOBNAME JOBCOUNT STATUS STRTDATE STRTTIME ENDDATE ENDTIME` — **not yet pulled/activated on this system** (Stage 3, pending — pull was interrupted by a VPN issue). `STATUS` is cast defensively (`abap.char(1)`) from the start this time — T1 is direct proof this system enforces the conversion-exit rule on code fields, not just dates, so Stage 3 applies rule #8 proactively instead of waiting for the same round-trip. |
-| `E070` | `TRKORR TRFUNCTION TRSTATUS AS4USER AS4DATE AS4TIME` — **not yet pulled/activated** (Stage 4). Deliberately **not** joined to `E07T` (short text) — text-table joins were Employee-360's single biggest source of "column unknown" errors (A10); header fields only, for now. `TRFUNCTION`/`TRSTATUS` cast defensively. `StatusCriticality` only claims the two confirmed codes (`D`=modifiable, `R`=released); anything else falls to neutral rather than guessing. |
+| `TBTCO` | `JOBNAME JOBCOUNT STATUS STRTDATE STRTTIME ENDDATE ENDTIME` — **confirmed clean.** Proactive `STATUS` cast (applying T1 before it could recur) worked first try, no runtime error. |
+| `E070` | `TRKORR TRFUNCTION TRSTATUS AS4USER AS4DATE AS4TIME` — **confirmed clean.** No `E07T` join, no conversion-exit error. `AS4USER` (a username field, same family as `USR02-BNAME`) rendered fine raw, same as `BNAME` did in Stage 2. |
+| `ZTWR_CFG_IFACE` | New custom table (Stage 6) — every field name is our own choice, so no SAP field-name guessing risk. Data elements used: `MANDT`, `CHAR20`, `CHAR40`, `BNAME` (reused from Stage 2, already proven to render raw), `XFELD` (reused from `Utility-Class-and-Method`'s `ZAB_V1_UT_ADPT`, the one proven `TABL` object in this toolchain). **Not yet pulled/activated** — first use of the `TABL` object type in this repo. |
 
 ---
 
@@ -111,6 +112,15 @@ icon correct, dates rendering (blank where genuinely unset, e.g. no
 sample rows with **no runtime error**, so unlike `USTYP` it does **not**
 carry a blocking conversion exit — real empty data, not a T1-style symptom.
 No further action on `CLASS`.
+
+**Stages 3–5 result: clean, all three.** Pulled and activated together after
+the client's VPN issue cleared. `BackgroundJob`/`BackgroundJobSummary`,
+`TransportRequestSet`/`TransportSummary`, `HeadcountOverview` all previewed
+correctly, zero activation errors, no runtime/conversion-exit errors — the
+proactive `Status` cast on `ZI_TWR_BGJOB` (applying T1 before it could recur)
+paid off. Five stages in and the shape is holding: own anchor views,
+`#NOT_REQUIRED` everywhere, no DCL, plain `select from`, defensive casts on
+every code/date/time field.
 
 **Stage 1 result: clean.** Pulled into `ZABAP_UTIL`, "Activate All Inactive"
 succeeded first pass, `ZTWR_UI_SRVB_O4` → `DataQualityIssue` preview rendered

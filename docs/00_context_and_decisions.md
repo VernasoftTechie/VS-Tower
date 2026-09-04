@@ -79,19 +79,25 @@ clean on the first pass, `ZTWR_UI_SRVB_O4` preview verified with real data —
 `USR02-USTYP` conversion exit), fixed with a `cast`, re-pulled, preview
 verified — 4,860 users, lock-status criticality rendering correctly.
 
-**Stage 3 (Background Jobs Monitor): pushed, pull pending.** Client hit a VPN
-issue and asked to keep building rather than wait — will pull Stages 3–5
-together.
+**Stages 3–5: done, confirmed clean.** Background Jobs Monitor, Transport
+Monitor (local, reordered), and Headcount Overview (reordered) all pulled and
+verified together after the client's VPN issue cleared — zero errors across
+all three (`BUILD_ISSUES_LOG.md`).
 
-**Stages 4–5: reordered and pushed, pull pending.** The *original* Stage 4
-(config tables) and Stage 5 (Integration Monitoring) were **not** built next —
-config tables need a new, unproven abapGit object type (`TABL`) and nothing
-yet consumes them; Integration Monitoring needs real interface names/log
-techniques this session doesn't have. Built instead, same zero-guesswork
-shape as Stages 1–3: **Stage 4 = Transport Monitor** (local system, `E070`
-only, no text-table join) and **Stage 5 = Headcount Overview** (reuses Stage
-1's `ZI_TWR_EMP_BASIC` directly, no new interface view). Full reasoning in
-`02_solution_architecture.md` §8. Original Stage 4/5 renumbered to 6/7.
+**Stage 6 (Foundation, narrowed): pushed, pull pending.** Just the interface
+catalog table (`ZTWR_CFG_IFACE`) — first use of the `TABL` object type in
+this repo, built by mirroring `Utility-Class-and-Method`'s one proven `TABL`
+object field-for-field. The other three original Stage-4 tables (watched-jobs
+catalog, alert config, snapshot history) stay deferred until their consuming
+stages exist. Ships empty; a CDS layer over it lets it be verified through
+the same Fiori-preview loop as every other stage (0 rows = correct, not an
+error).
+
+**Stage 7 (Integration Monitoring): blocked on data, not on this session.**
+Needs real interface names + log techniques from the client — see
+`03_stage7_data_collection.md` for exactly what to gather and how. Full
+original Stage 4/5 reasoning (why they weren't built blind) is in
+`02_solution_architecture.md` §8.
 
 ---
 
@@ -105,3 +111,4 @@ only, no text-table join) and **Stage 5 = Headcount Overview** (reuses Stage
 | 2026-09-04 | **Stage 1 confirmed green** — pulled, activated clean, preview verified (40,529 rows). Stage 2 (Security Monitor) source written and pushed. |
 | 2026-09-04 | **Stage 2 confirmed green after one fix** — T1 (`USTYP` conversion exit) hit, fixed, re-verified (4,860 users). Stage 3 (Background Jobs Monitor) source written and pushed, applying the T1 lesson proactively. |
 | 2026-09-04 | Client blocked by a VPN issue, asked to keep building. Stages 4–5 **reordered**: Transport Monitor (local) and Headcount Overview built instead of the original config-tables/Integration-Monitoring plan (new object type + missing client data, respectively — both deferred, not guessed). Stages 3–5 pushed together, pull pending. |
+| 2026-09-04 | **Stages 3–5 confirmed clean** — all pulled and verified together. Stage 6 (interface catalog table only, narrowed from the original 4-table plan) built and pushed — first `TABL` object in this repo. `03_stage7_data_collection.md` written: Stage 7 is blocked on real interface data from the client, not on further build work. |
