@@ -11,8 +11,8 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
   launchpad / Basis layer (tile + catalog + PFCG), scoped to *HR and above*.
 - ABAP scope = **on-prem monitoring only**. CPI / SuccessFactors / ECP-native
   data is a separate CAP / BTP track (mirrors the Employee 360 split).
-- Package: **`ZTWR_UTIL`** (proposed default — flagged, not yet confirmed;
-  see `docs/02_solution_architecture.md` §3).
+- Package: **`ZABAP_UTIL`** (confirmed — shared with `Utility-Class-and-Method`;
+  operational note in `docs/02_solution_architecture.md` §3).
 - Built to the **Vernasoft ABAP & RAP Engineering Rulebook v1.0**.
 
 > **Build status:** Stage 1 written, not yet pulled/activated. See
@@ -53,9 +53,9 @@ Bank/IBAN. Duplicate Employee and Missing Manager are deferred — see
 
 ## Pull & activate (Stage 1)
 
-1. Create package **`ZTWR_UTIL`** in the system (SE80/ADT), assign a transport
-   — confirm the package name first (`docs/02_solution_architecture.md` §3).
-2. Link the `VS-Tower` repo to that package in the abapGit repo settings, pull.
+1. Package **`ZABAP_UTIL`** already exists (owned by `Utility-Class-and-Method`)
+   — nothing to create.
+2. Link the `VS-Tower` repo to `ZABAP_UTIL` in the abapGit repo settings, pull.
 3. Package → **Activate All Inactive ABAP Development Objects** (run twice if
    the first pass leaves cross-references inactive).
 4. Preview: open `ZTWR_UI_SRVB_O4` → select `DataQualityIssue` or

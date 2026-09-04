@@ -41,41 +41,30 @@ Stage 5+; it doesn't block Stage 1 (Data Quality) at all.
 (import status in QA/Prod), which is Phase 2 by design. Local-system transport
 requests (`E070`) need no RFC and are Phase 1. Non-blocking today.
 
-## 3. Package — flagged, not silently decided
+## 3. Package — confirmed `ZABAP_UTIL`
 
-The rulebook (§4, Naming Standards) marks **Package: Always Ask** — so this is
-raised explicitly rather than assumed either way.
+Round 1 flagged that `ZABAP_UTIL` is already the linked, owning package of the
+separate, deployed `Utility-Class-and-Method` repo, breaking the
+one-package-per-repo pattern every other Vernasoft repo uses. **Client
+confirmed `ZABAP_UTIL` explicitly after that flag** — proceeding on it.
 
-The instruction was to use `ZAB_UTIL`. Checking the actual `Utility-Class-and-Method`
-repository, the package that framework is deployed to and linked from is
-**`ZABAP_UTIL`** (not `ZAB_UTIL` — close, but not the same name; using the
-literal wrong name would fail to find a package at link time).
+**Operational consequence, recorded once and not re-litigated:** two abapGit
+repos are now scoped to the same package. A "pull" / "Activate All Inactive"
+in *either* repo enumerates every object physically in `ZABAP_UTIL`, so each
+repo's tooling will now also see the other's objects (`ZAB_V1_UT_*` visible
+from `VS-Tower`'s side; `ZI_TWR_*` / `ZC_TWR_*` / `ZTWR_*` visible from
+`Utility-Class-and-Method`'s side). Neither repo's own `/src` git tree changes
+because of this — abapGit only stages what's in that repo's tree — but a
+manual "add to repository" or "remove" action taken on the *wrong* repo's
+screen could cross-contaminate. Practical mitigation: **this repo does not
+ship its own `package.devc.xml`** (removed after the first commit) — package
+description ownership stays with `Utility-Class-and-Method`, avoiding a
+two-repo fight over the package's own metadata. Always double check which
+repo's screen a pull/activate/stage is being done from.
 
-More importantly: `ZABAP_UTIL` is already the **linked, owning package of the
-`Utility-Class-and-Method` repository** — a separate, already-deployed
-abapGit repo. Every other Vernasoft repo (`Employee-360` → `ZHR_UTIL`,
-`Salary-Master` → `ZHR_UTIL`, `Utility-Class-and-Method` → `ZABAP_UTIL`) keeps
-a **1 package : 1 repo** relationship. If `VS-Tower`'s objects also live in
-`ZABAP_UTIL`, both repos' "Activate All Inactive Objects in Package" and
-abapGit pull/serialize cycles start seeing each other's objects — real risk of
-one repo's pull flagging the other repo's objects as foreign / to-be-deleted,
-on a package that's already live.
-
-**What I believe was actually meant:** *reuse the Utility Framework* — i.e.
-VS-Tower's future background jobs and check classes call `ZCL_AB_V1_UT`'s
-methods (logging, config, date helpers) from package `ZABAP_UTIL`, exactly as
-intended. That's consumption, not co-location, and it doesn't require
-VS-Tower's own objects to live inside `ZABAP_UTIL`.
-
-**Proceeding with:** a new, dedicated package **`ZTWR_UTIL`** for this repo's
-own objects (same one-package-per-repo pattern as every other project), while
-calling into `ZCL_AB_V1_UT` from `ZABAP_UTIL` wherever the utility framework is
-actually used. **Say the word and I'll rename to `ZABAP_UTIL` on the next
-commit** — cheap to change now (10 objects), expensive later.
-
-Create package `ZTWR_UTIL` in the system first (SE80/ADT, assign a transport),
-then link the `VS-Tower` abapGit repo to it before the first pull — same
-one-time step Employee-360's README documents for `ZHR_UTIL`.
+`ZABAP_UTIL` already exists and is already linked to `Utility-Class-and-Method`
+— no new package to create. Just link the **`VS-Tower`** abapGit repo to the
+existing `ZABAP_UTIL` package and pull.
 
 ## 4. Layering — read-only only, no BDEF
 
@@ -107,7 +96,7 @@ no CDS/RAP authorization; Basis owns the Fiori tile). No DCL objects.
 
 | Object | Prefix (rulebook §4) | This repo |
 |---|---|---|
-| Package | Always ask | `ZTWR_UTIL` (flagged, §3) |
+| Package | Always ask | `ZABAP_UTIL` (confirmed, §3) |
 | CDS Interface | `ZI_` | `ZI_TWR_<AREA>` |
 | CDS Consumption | `ZC_` | `ZC_TWR_<AREA>` |
 | Service Definition | — | `ZTWR_UI_SRVD` |
@@ -199,9 +188,9 @@ client-specific and unconfirmed. Upgraded once confirmed.
 
 ## 10. Pull & activate (Stage 1)
 
-1. Create package `ZTWR_UTIL` in the system (or confirm the package name per
-   §3), assign a transport.
-2. Link the `VS-Tower` repo to `ZTWR_UTIL` in the abapGit repo settings, pull.
+1. `ZABAP_UTIL` already exists (owned by `Utility-Class-and-Method`) — no
+   package to create.
+2. Link the `VS-Tower` repo to `ZABAP_UTIL` in the abapGit repo settings, pull.
 3. Package → **Activate All Inactive ABAP Development Objects** (run twice if
    the first pass leaves cross-references inactive).
 4. Preview: open `ZTWR_UI_SRVB_O4` → select `DataQualityIssue` or

@@ -60,7 +60,7 @@ Presentation coverage in Fiori: **~95%** (funnel + org tree need freestyle UI5).
 | 2 | Payroll Control Center licensed? | **Unknown.** | Non-blocking — Stage 9 (payroll) targets base tables (`T549A`/`T569V`/`TBTCO`) regardless; PCC just makes that stage cheaper if it's there. |
 | 3 | Inbound replication technique? | **Not fixed — resolved by design.** | Decision D6 (config-driven interface catalog) already handles this: each interface's log technique is a config value, not a hardcoded assumption. Non-blocking. |
 | 4 | Trusted TMS RFC to domain controller? | **Not needed yet.** | Only the remote half of Transport Monitor (Phase 2) needs it. Non-blocking for Phase 1. |
-| 5 | Package `ZAB_UTIL`? | **Flagged, not confirmed.** | Actual name is `ZABAP_UTIL`, and it's already the linked package of the separate, deployed `Utility-Class-and-Method` repo. Proceeding on a new dedicated package `ZTWR_UTIL` (one-package-per-repo, matching every other project) — full reasoning in `02_solution_architecture.md` §3. Say the word to switch to `ZABAP_UTIL` instead. |
+| 5 | Package `ZAB_UTIL`? | **Confirmed `ZABAP_UTIL`** (round 3), after the round-2 flag that it's already the linked package of the separate, deployed `Utility-Class-and-Method` repo. | `VS-Tower` objects now live in `ZABAP_UTIL`. This repo no longer ships its own `package.devc.xml` (removed) so it doesn't fight `Utility-Class-and-Method`'s repo over the package's own description. Operational note in `02_solution_architecture.md` §3: a pull/activate in either repo now enumerates both repos' objects — take care which repo's screen an action is done from. |
 | — | "Rulebook says AUTHORITY-CHECK/DCL are mandatory (§6) — this repo has none" | **Recorded as an accepted, flagged deviation** (D2), not silently ignored. See `02_solution_architecture.md` §7. |
 
 **D8 (new):** *Always check `docs/BUILD_ISSUES_LOG.md` before committing.*
@@ -71,11 +71,11 @@ green build).
 
 ## 6. Status
 
-Design docs 02 approved for Stage 1. Stage 1 source is written and pushed
-(`/src` — Data Quality Overview, 8 objects, no custom DDIC, no BDEF, no DCL).
-Not yet pulled/activated in the SAP system. Next: client creates/confirms
-package `ZTWR_UTIL`, links the repo, pulls, activates, and reports every
-error back verbatim for the log.
+Design docs 02 approved for Stage 1. Package confirmed as `ZABAP_UTIL`.
+Stage 1 source is written and pushed (`/src` — Data Quality Overview, 8
+objects, no custom DDIC, no BDEF, no DCL). Not yet pulled/activated in the SAP
+system. Next: link `VS-Tower` to the existing `ZABAP_UTIL` package, pull,
+activate, and report every error back verbatim for the log.
 
 ---
 
@@ -85,3 +85,4 @@ error back verbatim for the log.
 |---|---|
 | 2026-09-04 | Repo created. Feasibility map + this decisions log written. Environment confirmed (S/4 on-prem, S/4 HCM, on-prem scope only). Decisions D1–D7 locked, incl. **read-only, no CDS/RAP authorization**. 13 open confirmations raised. |
 | 2026-09-04 | Rulebook applied. Confirmations round 2 received (Payroll on-prem confirmed; PCC/replication-technique/TMS-RFC resolved as non-blocking by design; package flagged — see §5). D8 (bug-log-before-commit) added. `docs/02_solution_architecture.md` and `docs/BUILD_ISSUES_LOG.md` written. Stage 1 (Data Quality Overview, 4 checks) built and pushed to `/src` — not yet pulled/activated. |
+| 2026-09-04 | Package confirmed as `ZABAP_UTIL` (round 3). Removed `src/package.devc.xml` so this repo doesn't manage that package's description alongside `Utility-Class-and-Method`. Docs updated throughout. |
