@@ -1,0 +1,217 @@
+# VS-Tower — Solution Architecture (Doc 02)
+
+**Project:** VS SF Control Tower — read-only operations-monitoring dashboard
+**Repository:** https://github.com/VernasoftTechie/VS-Tower.git
+**Status:** APPROVED for Stage 1 build. Built to the *Vernasoft ABAP & RAP
+Engineering Rulebook v1.0*.
+**Depends on:** `00_context_and_decisions.md` (decisions D1–D7), `01_feasibility_map.md`
+
+---
+
+## 1. Confirmations received this round
+
+| # | Question | Answer |
+|---|---|---|
+| — | On-prem SAP Payroll or ECP? | **On-prem SAP Payroll.** Confirmed — Section I (`01_feasibility_map.md`) stays in ABAP scope. |
+| — | Payroll Control Center licensed? | **Unknown.** Non-blocking — see §2. |
+| — | Inbound replication technique (IDoc/SOAP/AIF/PTP)? | **Not fixed** — resolved by design, not by answer. See §2. |
+| — | Trusted TMS RFC to domain controller? | **Not needed yet** — Transport Monitor is Phase 2. See §2. |
+| — | Package | **Flagged, not confirmed** — see §3. Proceeding on a safe default. |
+
+## 2. Why those three questions were asked, and why they don't block Stage 1
+
+**Payroll Control Center (PCC).** It's SAP's own payroll-monitoring add-on —
+if licensed, it ships released CDS (`I_PayrollProcess*`) and standard Fiori
+apps that would cover most of the Payroll Dashboard for very little build
+effort. Not knowing is fine: Stage build for Payroll (later stage) targets the
+**base tables** (`T549A`, `T569V`, `TBTCO`) that always exist, regardless of
+PCC. If PCC turns out to be active, that stage gets cheaper, not blocked.
+
+**Inbound replication technique.** IDoc, SOAP/SRT, AIF and PTP each log to a
+*different* table (`EDIDC/EDIDS` vs `SRT_MONI` vs `/AIF/*`). Rather than wait
+for the answer, decision **D6** (config-driven monitoring, already locked)
+solves it structurally: the interface catalog (Stage 4, foundation) carries a
+**"log technique" field per interface**, and each interface's Integration
+Monitoring row reads from whichever table its own config says. One interface
+can be IDoc-based while another is SOAP-based — no redesign needed either way.
+This question only matters when we build the *first real interface row* in
+Stage 5+; it doesn't block Stage 1 (Data Quality) at all.
+
+**Trusted TMS RFC.** Only needed for the *remote* half of Transport Monitor
+(import status in QA/Prod), which is Phase 2 by design. Local-system transport
+requests (`E070`) need no RFC and are Phase 1. Non-blocking today.
+
+## 3. Package — flagged, not silently decided
+
+The rulebook (§4, Naming Standards) marks **Package: Always Ask** — so this is
+raised explicitly rather than assumed either way.
+
+The instruction was to use `ZAB_UTIL`. Checking the actual `Utility-Class-and-Method`
+repository, the package that framework is deployed to and linked from is
+**`ZABAP_UTIL`** (not `ZAB_UTIL` — close, but not the same name; using the
+literal wrong name would fail to find a package at link time).
+
+More importantly: `ZABAP_UTIL` is already the **linked, owning package of the
+`Utility-Class-and-Method` repository** — a separate, already-deployed
+abapGit repo. Every other Vernasoft repo (`Employee-360` → `ZHR_UTIL`,
+`Salary-Master` → `ZHR_UTIL`, `Utility-Class-and-Method` → `ZABAP_UTIL`) keeps
+a **1 package : 1 repo** relationship. If `VS-Tower`'s objects also live in
+`ZABAP_UTIL`, both repos' "Activate All Inactive Objects in Package" and
+abapGit pull/serialize cycles start seeing each other's objects — real risk of
+one repo's pull flagging the other repo's objects as foreign / to-be-deleted,
+on a package that's already live.
+
+**What I believe was actually meant:** *reuse the Utility Framework* — i.e.
+VS-Tower's future background jobs and check classes call `ZCL_AB_V1_UT`'s
+methods (logging, config, date helpers) from package `ZABAP_UTIL`, exactly as
+intended. That's consumption, not co-location, and it doesn't require
+VS-Tower's own objects to live inside `ZABAP_UTIL`.
+
+**Proceeding with:** a new, dedicated package **`ZTWR_UTIL`** for this repo's
+own objects (same one-package-per-repo pattern as every other project), while
+calling into `ZCL_AB_V1_UT` from `ZABAP_UTIL` wherever the utility framework is
+actually used. **Say the word and I'll rename to `ZABAP_UTIL` on the next
+commit** — cheap to change now (10 objects), expensive later.
+
+Create package `ZTWR_UTIL` in the system first (SE80/ADT, assign a transport),
+then link the `VS-Tower` abapGit repo to it before the first pull — same
+one-time step Employee-360's README documents for `ZHR_UTIL`.
+
+## 4. Layering — read-only only, no BDEF
+
+Per decision **D1** (read-only dashboard, no RAP actions anywhere), and
+following Employee-360's own proven fallback (`BUILD_ISSUES_LOG.md` A19: a
+`strict` unmanaged BDEF forces lock flags and operation wiring that a pure
+read-only entity doesn't have, and isn't worth fighting):
+
+```
+Standard tables (PA/OM/USR02/TBTCO/…)
+        ↓
+Interface CDS   ZI_TWR_*     plain "define view entity … as select from"
+        ↓
+Consumption CDS ZC_TWR_*     plain "define view entity … as select from"
+                             (never "as projection on" — no BO, no BDEF)
+        ↓
+Service Definition  ZTWR_UI_SRVD
+        ↓
+Service Binding      ZTWR_UI_SRVB_O4   (OData V4 – UI)
+        ↓
+Fiori (freestyle shell + Fiori Elements drill-downs)
+```
+
+No behavior definition, no behavior pool, anywhere in this repo. Every entity
+carries `@AccessControl.authorizationCheck: #NOT_REQUIRED` (decision **D2** —
+no CDS/RAP authorization; Basis owns the Fiori tile). No DCL objects.
+
+## 5. Naming
+
+| Object | Prefix (rulebook §4) | This repo |
+|---|---|---|
+| Package | Always ask | `ZTWR_UTIL` (flagged, §3) |
+| CDS Interface | `ZI_` | `ZI_TWR_<AREA>` |
+| CDS Consumption | `ZC_` | `ZC_TWR_<AREA>` |
+| Service Definition | — | `ZTWR_UI_SRVD` |
+| Service Binding | — | `ZTWR_UI_SRVB_O4` |
+| Class | `ZCL_` | `ZCL_TWR_<AREA>` (from Stage 4 onward, snapshot/check jobs) |
+| Tables | `ZT_` | `ZTWR_<AREA>` (Stage 4 onward — config/snapshot/alert tables) |
+| Messages | `ZMSG_` | `ZMSG_TWR` (introduced with the first ABAP class, not before) |
+
+## 6. Reuse strategy — pattern, not object
+
+VS-Tower does **not** consume Employee-360's CDS entities directly, even where
+the data overlaps (both read PA0001/PA0002/PA0009/PA0105). Two reasons:
+
+1. Employee-360's anchor (`ZI_HR360_EMP_BASIC`) carries `@AccessControl.authorizationCheck: #CHECK`
+   + a DCL. Consuming it would silently reintroduce the authorization
+   dependency decision D2 explicitly rules out (see `BUILD_ISSUES_LOG.md` §0.18).
+2. Two independently-deployed abapGit repos should not hold a hard object
+   dependency on each other — either one's refactor breaks the other.
+
+Instead, VS-Tower defines its **own** small interface views, using field names
+and casts **already proven correct on this exact system** by Employee-360's
+build history (`BUILD_ISSUES_LOG.md` §1 table). This is a few dozen lines of
+duplication in exchange for zero cross-repo coupling and zero re-litigating of
+already-solved field-name/cast problems. `ZCL_AB_V1_UT` (from `ZABAP_UTIL`) is
+reused directly by **calling** its methods once VS-Tower has its own ABAP
+classes (Stage 4+) — that is genuine "build once, reuse everywhere."
+
+## 7. Accepted deviations from the Rulebook
+
+| # | Deviation | Rulebook clause | Rationale | Mitigation |
+|---|---|---|---|---|
+| 1 | No `AUTHORITY-CHECK`, no DCL, anywhere in this repo | §6 Security: "Authorization strategy, AUTHORITY-CHECK" | Explicit, repeated client instruction (decision D2): the dashboard is HR-and-above only, enforced entirely at the Fiori tile/PFCG layer by Basis; CDS/RAP return the full dataset by design. | Recorded here for audit/governance sign-off. If the access model ever needs row-level scoping, it is added as DCL at that point — not assumed now. |
+| 2 | Custom Z tables (config catalog, snapshot history, alert store) — not "zero custom DDIC" | §1 "Build once, reuse everywhere" read narrowly | No standard SAP persistence exists for "which interfaces/jobs/checks to watch" or for history beyond SLG1/SRT_MONI's short retention (`01_feasibility_map.md` §21, §24). | Kept to the minimum: config + snapshot + alert store only, introduced in Stage 4, never used to duplicate data that a released CDS view already provides. |
+
+## 8. Stage roadmap
+
+Each stage is one abapGit pull + activation round, deployed and verified by
+the client before the next stage starts (their "safe mode," proven on
+Employee-360). Maps onto the Phase 1 / Phase 2 / CAP split in
+`01_feasibility_map.md` §25.
+
+| Stage | Delivers | Feasibility map section | New custom DDIC? |
+|---|---|---|---|
+| **1** (this commit) | Data Quality Overview — Missing Email / Cost Center / Position / Bank | §10 (G) | None |
+| 2 | Security Monitor — locked users, password age, technical users | §19 (P) | None |
+| 3 | Background Jobs Monitor | §14 (K) | None |
+| 4 | Foundation — interface catalog, watched-jobs catalog, check/alert config, snapshot history table | §21 (R) | `ZTWR_CFG_IFACE`, `ZTWR_CFG_JOB`, `ZTWR_CFG_ALERT`, `ZTWR_SNAPSHOT` |
+| 5 | Integration Monitoring + Inbound Message Monitor (reads Stage 4 catalog) | §6 (C), §7 (D) | `ZTWR_ALERT` (alert store) |
+| 6 | OData / Gateway Monitor | §8 (E) | None |
+| 7 | Replication Summary & Error Analysis | §9 (F) | None |
+| 8 | Remaining KPI tiles, headcount/org donut, New Joiners | §5 (B), §16 (M), §17 (N) | None |
+| 9 | Payroll basics (areas, runs, PCC-if-present) | §12 (I) | None |
+| 10 | Alerts list (display-only) + duplicate-employee / extended DQ checks | §15 (L), §10 (G) | None |
+| — | Freestyle dashboard shell assembling Stages 1–10; Fiori Elements drill-downs per entity | §21 (R) | — |
+| Phase 2 | Trends (needs Stage 4 snapshot history), Workflow + funnel, Org tree, cert/OAuth/RFC alerts, Performance panel, Transport Monitor (local + TMS RFC) | `01_feasibility_map.md` §25 | per section |
+| CAP track | CPI MPL, SF Recruiting/Performance, ECP payroll, SF workflow | `01_feasibility_map.md` §22 | separate repo |
+
+Two items intentionally **not** in Stage 1's Data Quality slice, even though
+they're in the dashboard's Section G:
+
+- **Duplicate Employee** — needs an aggregation (`GROUP BY … HAVING`) on top of
+  the anchor view. Employee-360's log shows aggregation was its single biggest
+  source of activation errors (A3/A4/A15/A17/A28/A29). Shipping it once the
+  four simple checks are proven green (Stage 10) follows the log's own rule:
+  grow from a working core.
+- **Missing Manager** — needs an `HRP1001` chief-position relationship whose
+  exact ID Employee-360 itself never confirmed on this client
+  (`BUILD_ISSUES_LOG.md` §E: *"HRP1001 chief-position path unverified... re-add
+  when client confirms the relationship IDs"*). Same open item, not
+  re-solved blind here.
+
+"Invalid Position" in Stage 1 is delivered as **"Position not assigned"**
+(`PositionId` initial) — the verified, low-risk proxy — rather than a
+dummy-position-code check (e.g. `PLANS = 99999999`), since that convention is
+client-specific and unconfirmed. Upgraded once confirmed.
+
+## 9. What ships in this commit (Stage 1)
+
+| Object | Type | Purpose |
+|---|---|---|
+| `ZI_TWR_EMP_BASIC` | Interface CDS | Anchor: one row per active employee — PA0001 ⋈ PA0002 |
+| `ZI_TWR_EMP_CONTACT` | Interface CDS | Email address — PA0105 subtype 0010 |
+| `ZI_TWR_EMP_BANK` | Interface CDS | Bank / IBAN — PA0009 subtype 0 |
+| `ZI_TWR_DQ_ISSUE` | Interface CDS | 4-branch UNION check view (Missing Email / Cost Center / Position / Bank) |
+| `ZC_TWR_DQ_ISSUE` | Consumption CDS | Query view + minimal `@UI` for a List Report |
+| `ZC_TWR_DQ_SUMMARY` | Consumption CDS | Aggregated by Category/Severity, for the donut |
+| `ZTWR_UI_SRVD` | Service Definition | Exposes both consumption views |
+| `ZTWR_UI_SRVB_O4` | Service Binding | OData V4 – UI, published |
+
+## 10. Pull & activate (Stage 1)
+
+1. Create package `ZTWR_UTIL` in the system (or confirm the package name per
+   §3), assign a transport.
+2. Link the `VS-Tower` repo to `ZTWR_UTIL` in the abapGit repo settings, pull.
+3. Package → **Activate All Inactive ABAP Development Objects** (run twice if
+   the first pass leaves cross-references inactive).
+4. Preview: open `ZTWR_UI_SRVB_O4` → select `DataQualityIssue` or
+   `DataQualitySummary` → **Preview**.
+5. Report back **every** activation error verbatim (object + full message
+   text) before the next stage is written — each gets logged in
+   `BUILD_ISSUES_LOG.md` with its fix, per the process rule.
+
+## 11. Post-pull (not in the repo)
+
+- **SLG0** — not needed yet (no ABAP class/report in this stage).
+- **Authorization** — none required by design (D2). The dashboard tile itself
+  is restricted to HR-and-above by Basis, outside this repo's scope.

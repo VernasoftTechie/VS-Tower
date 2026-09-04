@@ -52,66 +52,30 @@ points. Every point is inventoried in `01_feasibility_map.md`.
 
 Presentation coverage in Fiori: **~95%** (funnel + org tree need freestyle UI5).
 
-## 5. Open confirmations — needed before development starts
+## 5. Confirmations received (round 2)
 
-Grouped by impact. Answers will be folded into this document and the phase plan.
+| # | Question | Answer | Effect |
+|---|---|---|---|
+| 1 | On-prem SAP Payroll or ECP? | **On-prem SAP Payroll.** | Payroll Dashboard (Section I) stays in ABAP scope. |
+| 2 | Payroll Control Center licensed? | **Unknown.** | Non-blocking — Stage 9 (payroll) targets base tables (`T549A`/`T569V`/`TBTCO`) regardless; PCC just makes that stage cheaper if it's there. |
+| 3 | Inbound replication technique? | **Not fixed — resolved by design.** | Decision D6 (config-driven interface catalog) already handles this: each interface's log technique is a config value, not a hardcoded assumption. Non-blocking. |
+| 4 | Trusted TMS RFC to domain controller? | **Not needed yet.** | Only the remote half of Transport Monitor (Phase 2) needs it. Non-blocking for Phase 1. |
+| 5 | Package `ZAB_UTIL`? | **Flagged, not confirmed.** | Actual name is `ZABAP_UTIL`, and it's already the linked package of the separate, deployed `Utility-Class-and-Method` repo. Proceeding on a new dedicated package `ZTWR_UTIL` (one-package-per-repo, matching every other project) — full reasoning in `02_solution_architecture.md` §3. Say the word to switch to `ZABAP_UTIL` instead. |
+| — | "Rulebook says AUTHORITY-CHECK/DCL are mandatory (§6) — this repo has none" | **Recorded as an accepted, flagged deviation** (D2), not silently ignored. See `02_solution_architecture.md` §7. |
 
-### Blocks scope of a whole panel
-1. **Payroll — on-prem SAP Payroll, or Employee Central Payroll (ECP)?**
-   ECP ⇒ the entire Payroll Dashboard (Section I) moves to the CAP track.
-2. **Is SAP Payroll Control Center (PCC) licensed and active?**
-   If yes, released `I_PayrollProcess*` CDS + standard Fiori cover most of the
-   payroll panel for very little build.
-3. **"Overall Landscape" selector — one S/4 system, or several?**
-   Does the ABAP side need to report on any system other than the local one?
+**D8 (new):** *Always check `docs/BUILD_ISSUES_LOG.md` before committing.*
+Standing process rule, per instruction — every activation error is logged
+there with its fix before the next file is written, so this system's mistakes
+are made once, not repeatedly (this is exactly how Employee-360 got to a
+green build).
 
-### Determines which tables we read
-4. **Inbound replication technique for the SF → S/4 HCM interfaces —**
-   **IDoc, SOAP/SRT (web service), AIF, or PTP/point-to-point?**
-   Sets whether Sections B–D read `EDIDC/EDIDS`, `SRT_RTC/SRT_MONI`, `/AIF/*`,
-   or the PTP framework tables.
-5. **Is SAP AIF licensed and used for the HCM interfaces?**
-   AIF ships its own message dashboard content and OData services we could reuse.
-6. **Retention of SLG1, SRT_MONI and Gateway statistics (days)?**
-   Sets how aggressive the nightly snapshot job must be and how much history
-   exists at go-live.
-7. **Trusted TMS RFC to the transport domain controller — permitted?**
-   Decides Transport Monitor depth: local requests only (P1) vs full QA/Prod
-   import status (P2).
-8. **HR approval workflows — classic SAP Business Workflow, or Flexible Workflow?**
-   Released CDS coverage differs sharply; Flexible Workflow may need table reads.
+## 6. Status
 
-### Determines build shape
-9. **S/4HANA release / feature-pack level?**
-   Governs which standard CDS exist — IAM (`I_BusinessUser*`), Application Jobs
-   (`I_ApplicationJob*`), certificate monitoring, Application Log views.
-10. **Fiori deployment target — embedded FLP, standalone FLP, or Work Zone?**
-11. **Refresh cadence / near-real-time expectation?**
-    Live CDS vs snapshot-served; auto-refresh interval in the UI.
-12. **Volumes — active headcount and approximate daily inbound message count?**
-    Performance sizing for the "CDS over log tables vs extract-to-Z" decision.
-
-### Confirm the read of an instruction
-13. **Data scope per user — confirm interpretation.**
-    We have taken *"based on the accessed user position and org … all the data
-    should be retrieved by default"* + *"nothing to be considered inside RAP or
-    CDS"* to mean: **CDS/RAP return the full, org-wide dataset with no
-    user-based filtering**; any narrowing is a Basis/launchpad concern only.
-    Correct?
-
-## 6. Next step
-
-On receipt of the Section 5 answers plus the detailed instructions, the next
-deliverables are the design docs:
-
-| Doc | Content |
-|---|---|
-| `02_solution_architecture.md` | Layers, package, CDS/RAP/service/UI structure, reuse map |
-| `03_persistence_and_config_model.md` | Z config + snapshot tables (the only custom DDIC) |
-| `04_cds_design.md` | Interface → composite → consumption views per panel |
-| `05_rap_query_model.md` | Read-only query BOs, no behavior |
-| `06_service_and_ui.md` | OData V4 binding(s), freestyle shell + Fiori Elements drill-downs |
-| `07_snapshot_and_check_jobs.md` | Nightly aggregation + alert check framework |
+Design docs 02 approved for Stage 1. Stage 1 source is written and pushed
+(`/src` — Data Quality Overview, 8 objects, no custom DDIC, no BDEF, no DCL).
+Not yet pulled/activated in the SAP system. Next: client creates/confirms
+package `ZTWR_UTIL`, links the repo, pulls, activates, and reports every
+error back verbatim for the log.
 
 ---
 
@@ -120,3 +84,4 @@ deliverables are the design docs:
 | Date | Change |
 |---|---|
 | 2026-09-04 | Repo created. Feasibility map + this decisions log written. Environment confirmed (S/4 on-prem, S/4 HCM, on-prem scope only). Decisions D1–D7 locked, incl. **read-only, no CDS/RAP authorization**. 13 open confirmations raised. |
+| 2026-09-04 | Rulebook applied. Confirmations round 2 received (Payroll on-prem confirmed; PCC/replication-technique/TMS-RFC resolved as non-blocking by design; package flagged — see §5). D8 (bug-log-before-commit) added. `docs/02_solution_architecture.md` and `docs/BUILD_ISSUES_LOG.md` written. Stage 1 (Data Quality Overview, 4 checks) built and pushed to `/src` — not yet pulled/activated. |

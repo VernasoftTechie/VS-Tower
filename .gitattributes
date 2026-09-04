@@ -1,0 +1,11 @@
+# abapGit source: keep LF, treat as text
+*.asddls   text eol=lf
+*.asddlx   text eol=lf
+*.asdcls   text eol=lf
+*.asbdef   text eol=lf
+*.srvdsrv  text eol=lf
+*.abap     text eol=lf
+*.baseinfo text eol=lf
+*.xml      text eol=lf
+*.md       text eol=lf
+*.json      text eol=lf
