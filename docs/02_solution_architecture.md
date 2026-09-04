@@ -142,7 +142,7 @@ Employee-360). Maps onto the Phase 1 / Phase 2 / CAP split in
 |---|---|---|---|---|
 | **1** | ✅ **Done** — pulled, activated clean, preview verified with real data (40,529 issues) | Data Quality Overview — Missing Email / Cost Center / Position / Bank | §10 (G) | None |
 | **2** | ✅ **Done** — activation hit T1 (`USTYP` conversion exit), fixed, preview verified (4,860 users) | Security Monitor — locked users, password age, technical users | §19 (P) | None |
-| **3** | 🔄 T2 fix pushed, re-pull pending — blank `StartDate` broke the Fiori runtime on filter (`BUILD_ISSUES_LOG.md` T2) | Background Jobs Monitor | §14 (K) | None |
+| **3** | 🔄 T2 fix (3rd attempt) pushed, re-pull pending — blank date broke the Fiori runtime as `Edm.Date` (`BUILD_ISSUES_LOG.md` T2) | Background Jobs Monitor | §14 (K) | None |
 | **4** | ✅ **Done** | **Reordered** — Transport Monitor, local system only (was: Foundation config tables) | §20 (Q) | None |
 | **5** | ✅ **Done** | **Reordered** — Headcount Overview by Company Code × Personnel Area (was: Integration Monitoring) | §16 (M, partial) | None |
 | **6** | 🔄 Pushed, pull pending (this commit) | Foundation, narrowed — interface catalog only (`ZTWR_CFG_IFACE`). Watched-jobs catalog / alert config / snapshot history deferred until their consuming stages (Alerts, Trends) are ready | §21 (R) | `ZTWR_CFG_IFACE` |
@@ -293,16 +293,16 @@ entities don't appear immediately. Report every result — clean or not —
 verbatim for the log.
 
 **Update:** activation and the initial preview were clean, but using the
-`Job Name` filter (or otherwise triggering the value-help on `StartDate`)
-surfaced T2 — a blank `StartDate` broke the runtime. A first attempted fix
-(mapping blank dates to `cast( null as abap.dats )` in `ZI_TWR_BGJOB`) does
-**not** activate on this system ("Unexpected keyword NULL") — reverted. The
-actual fix is in `ZC_TWR_BGJOB`: `StartDate` is no longer a
-`@UI.selectionField`, so the value-help that broke on it is never built.
-Full detail in `BUILD_ISSUES_LOG.md` T2. Bundled into the Stage 6 pull, since
-both are already queued together. Re-verify `BackgroundJob` specifically
-after this pull, including using the filter bar this time, not just the
-initial unfiltered load.
+`Job Name` filter surfaced T2 — a blank `StartDate` broke the runtime. Three
+attempts: (1) `cast( null as abap.dats )` — doesn't activate ("Unexpected
+keyword NULL"); (2) drop `@UI.selectionField` from `StartDate`, keep
+`abap.dats` — activates, but the **same runtime error persists**, disproving
+the value-help theory; (3) **actual fix** — `ZI_TWR_BGJOB` now exposes
+`StartDate`/`StartTime`/`EndDate`/`EndTime` as plain text
+(`abap.char(8)`/`abap.char(6)`) instead of `abap.dats`/`abap.tims`, blank-safe
+via an empty-literal cast. Full detail in `BUILD_ISSUES_LOG.md` T2. Bundled
+into the Stage 6 pull. Re-verify `BackgroundJob` specifically after this
+pull, using the filter bar again.
 
 ## 16. What ships in this commit (Stage 4 — reordered, see box above)
 
@@ -361,7 +361,15 @@ one), so there's no field-name-guessing risk the way reading `PA0001` or
 `USR02` blind would carry — the only new risk is the `TABL` XML schema itself,
 mitigated by mirroring `Utility-Class-and-Method`'s one proven `TABL` object
 (`ZAB_V1_UT_ADPT`) field-for-field in shape, reusing its exact `XFELD` data
-element for the active flag and the already-proven `BNAME` for the owner.
+element for the active flag.
+
+**Update (T3):** the first version reused `BNAME` for the owner field, and
+had no per-element `@EndUserText.label` — Fiori then showed each field's raw
+underlying data-element label, and `BNAME` turned out to resolve to
+"Branching name" on this system, not a username label. Fixed: `IFACE_OWNER`'s
+rollname is now `CHAR40` (free text, not a real SU01 username anyway), and
+every element in `ZI_TWR_CFG_IFACE` carries its own explicit
+`@EndUserText.label`. Full detail in `BUILD_ISSUES_LOG.md` T3.
 
 **How to populate it**, once you have the data (see §22 / the data-collection
 doc): `SE16N` → table `ZTWR_CFG_IFACE` → create entries directly (needs a
@@ -375,15 +383,18 @@ so it's a one-time manual step, not shipped in the repo.
 
 ## 21. Pull & activate (Stage 6, plus the Stage 3 T2 fix)
 
-One pull covers both — the T2 fix (§15) and Stage 6 are in the same commit.
+One pull covers both — the T2 fix (§15) and Stage 6, including its own T3
+label fix, are in the same commit.
 
 1. Pull, then **Activate All Inactive ABAP Development Objects** (twice if
    needed) — this pull includes the first `TABL` activation in this repo, so
    treat any error on `ZTWR_CFG_IFACE` as high-priority to report verbatim.
 2. Re-verify `BackgroundJob` — use the `Job Name` filter this time, not just
    the initial unfiltered load, since that's what surfaced T2.
-3. Preview `InterfaceCatalog` on `ZTWR_UI_SRVB_O4` — **0 rows is the correct,
-   clean result** (the table ships empty). A runtime error is not.
+3. Preview `InterfaceCatalog` on `ZTWR_UI_SRVB_O4` — **0 rows is still the
+   correct, clean result** (the table ships empty); check that the filter
+   labels and column headers now read "Interface ID" / "Owner" / "Active"
+   etc., not "Char20" / "Branching name" / "Checkbox".
 4. Report back clean/error for both.
 
 ## 22. Stage 7 — blocked, needs data

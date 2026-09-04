@@ -17,13 +17,16 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
 
 > **Build status:** Stages 1, 2, 4, 5 pulled, activated, and verified clean
 > (Stage 2 hit one conversion-exit error, fixed — `docs/BUILD_ISSUES_LOG.md`
-> T1). Stage 3 activated clean but hit a runtime error on its filter bar
-> (T2 — blank date breaking a value-help); fixed, bundled into the Stage 6
-> pull, awaiting re-verify. Stage 6 (interface catalog table) pushed,
-> awaiting pull/activate. **Stage 7 (Integration Monitoring) is blocked on
-> data from the SAP Basis team** — see `docs/03_stage7_data_collection.md`.
-> Read `docs/BUILD_ISSUES_LOG.md` §0 before touching any CDS in this repo —
-> every activation error goes there before the next stage is written.
+> T1). Stage 3 activated clean but a blank date broke it at runtime (T2) —
+> took three attempts to pin down; fixed by exposing those fields as text
+> instead of `Edm.Date`. Stage 6 (interface catalog table) activated clean
+> but showed wrong filter/column labels (T3 — a reused data element resolved
+> to an unrelated label on this system); fixed with explicit labels. Both
+> fixes bundled into one commit, awaiting re-verify. **Stage 7 (Integration
+> Monitoring) is blocked on data from the SAP Basis team** — see
+> `docs/03_stage7_data_collection.md`. Read `docs/BUILD_ISSUES_LOG.md` §0
+> before touching any CDS in this repo — every activation error goes there
+> before the next stage is written.
 
 ---
 
@@ -72,22 +75,23 @@ Missing Cost Center, Missing Position (proxy for Invalid Position), Missing
 Bank/IBAN. Duplicate Employee and Missing Manager are deferred — see
 `docs/02_solution_architecture.md` §8.
 
-## Pull & activate (Stage 6, plus the Stage 3 fix)
+## Pull & activate (Stage 6 + fixes for T2 and T3)
 
-`VS-Tower` is already linked to `ZABAP_UTIL`. One pull covers both.
+`VS-Tower` is already linked to `ZABAP_UTIL`. One pull covers everything below.
 
 1. Pull the repo — brings in `ZTWR_CFG_IFACE` (a **table**, first use of that
    object type in this repo), `ZI_TWR_CFG_IFACE`, `ZC_TWR_CFG_IFACE`, the
-   extended `ZTWR_UI_SRVD`, **and** the fix for the `BackgroundJob` filter
-   error (T2 — see `docs/BUILD_ISSUES_LOG.md`).
+   extended `ZTWR_UI_SRVD`, the **T2** fix (`BackgroundJob`'s date fields are
+   now text, not `Edm.Date`), and the **T3** fix (explicit labels on the
+   interface catalog).
 2. Package → **Activate All Inactive ABAP Development Objects** (run twice if
    the first pass leaves cross-references inactive). Treat any error on the
    table activation itself as high-priority to report verbatim.
-3. Re-check `BackgroundJob` — this time actually use the `Job Name` filter /
-   trigger the value-help, not just the unfiltered initial load, since that's
-   what surfaced the error last time.
-4. Preview `InterfaceCatalog` on `ZTWR_UI_SRVB_O4` — **0 rows is the correct
-   result** (the table ships empty). A runtime error is not.
+3. Re-check `BackgroundJob` — use the `Job Name` filter again; `StartDate`
+   etc. will now display as plain text rather than a formatted date.
+4. Preview `InterfaceCatalog` on `ZTWR_UI_SRVB_O4` — **0 rows is still the
+   correct result** (the table ships empty); check the filter/column labels
+   now read "Interface ID" / "Owner" / "Active" etc.
 5. Report back clean/error for both.
 
 Stage 7 is blocked on data from the SAP Basis team, not on you pulling/testing

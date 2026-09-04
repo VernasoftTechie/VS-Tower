@@ -79,20 +79,27 @@ clean on the first pass, `ZTWR_UI_SRVB_O4` preview verified with real data —
 `USR02-USTYP` conversion exit), fixed with a `cast`, re-pulled, preview
 verified — 4,860 users, lock-status criticality rendering correctly.
 
-**Stages 3–5: 4 and 5 confirmed clean; Stage 3 hit a runtime error, fixed.**
+**Stages 3–5: 4 and 5 confirmed clean; Stage 3 took three attempts to fix.**
 All three pulled and activated together, zero activation errors. But using
 `BackgroundJob`'s filter bar surfaced T2 — a genuinely blank `StartDate`
-(normal for a scheduled-but-not-yet-run job) broke Fiori Elements' value-help
-for that filterable date field. First fix attempt (typed `null` in the CDS)
-doesn't activate on this system; the real fix removes `@UI.selectionField`
-from `StartDate` in `ZC_TWR_BGJOB` instead — blank dates already render fine
-as a plain, non-filterable column. Bundled into the
-Stage 6 pull for re-verification.
+(normal for a scheduled-but-not-yet-run job) broke the runtime. Attempt 1
+(typed `null` in the CDS) doesn't activate on this system. Attempt 2 (drop
+`@UI.selectionField`, keep the date type) activates but the **same error
+persists** — proving the value-help theory wrong. Actual fix: expose
+`StartDate`/`StartTime`/`EndDate`/`EndTime` as plain text instead of
+`Edm.Date`/`Edm.TimeOfDay` — a blank string is never an error for
+`Edm.String`. Bundled into the Stage 6 pull for re-verification.
 
-**Stage 6 (Foundation, narrowed): pushed, pull pending.** Just the interface
-catalog table (`ZTWR_CFG_IFACE`) — first use of the `TABL` object type in
-this repo, built by mirroring `Utility-Class-and-Method`'s one proven `TABL`
-object field-for-field. The other three original Stage-4 tables (watched-jobs
+**Stage 6 (Foundation, narrowed): pushed, hit a labelling bug (T3), fixed.**
+Interface catalog table (`ZTWR_CFG_IFACE`) — first use of the `TABL` object
+type in this repo, built by mirroring `Utility-Class-and-Method`'s one proven
+`TABL` object field-for-field. First preview: 0 rows was correct, but every
+filter/column label showed a raw, sometimes-wrong data-element label instead
+of a business one — `BNAME` (reused for the owner field, proven safe as a
+*select source* in Stage 2) resolved to "Branching name" as a *rollname* on
+this new table, not a username label. Fixed: `IFACE_OWNER` → `CHAR40`; every
+element in `ZI_TWR_CFG_IFACE` now carries an explicit `@EndUserText.label`.
+The other three original Stage-4 tables (watched-jobs
 catalog, alert config, snapshot history) stay deferred until their consuming
 stages exist. Ships empty; a CDS layer over it lets it be verified through
 the same Fiori-preview loop as every other stage (0 rows = correct, not an
@@ -119,4 +126,5 @@ blind) is in `02_solution_architecture.md` §8.
 | 2026-09-04 | **Stage 2 confirmed green after one fix** — T1 (`USTYP` conversion exit) hit, fixed, re-verified (4,860 users). Stage 3 (Background Jobs Monitor) source written and pushed, applying the T1 lesson proactively. |
 | 2026-09-04 | Client blocked by a VPN issue, asked to keep building. Stages 4–5 **reordered**: Transport Monitor (local) and Headcount Overview built instead of the original config-tables/Integration-Monitoring plan (new object type + missing client data, respectively — both deferred, not guessed). Stages 3–5 pushed together, pull pending. |
 | 2026-09-04 | **Stages 3–5 confirmed clean** — all pulled and verified together. Stage 6 (interface catalog table only, narrowed from the original 4-table plan) built and pushed — first `TABL` object in this repo. `03_stage7_data_collection.md` written: Stage 7 is blocked on real interface data from the client, not on further build work. |
-| 2026-09-04 | **T2 found and fixed** — `BackgroundJob`'s filter bar broke on a blank `StartDate` (Fiori Elements value-help can't parse an empty date on a filterable field). First fix (`cast( null as … )` in the CDS) doesn't activate on this system; real fix removes `@UI.selectionField` from `StartDate`. Bundled into the Stage 6 pull. SAP Basis Team confirmed as the default `Owner` for Stage 7's interface catalog. |
+| 2026-09-04 | **T2 found, fixed on the 3rd attempt** — a blank `StartDate` broke `BackgroundJob` regardless of filterability; real fix exposes it (and `StartTime`/`EndDate`/`EndTime`) as text instead of `Edm.Date`/`Edm.TimeOfDay`. Bundled into the Stage 6 pull. SAP Basis Team confirmed as the default `Owner` for Stage 7's interface catalog. |
+| 2026-09-04 | **T3 found and fixed** — `InterfaceCatalog`'s filter/column labels showed raw data-element text ("Branching name" for the owner field, sourced from a misapplied `BNAME` rollname). Fixed with `CHAR40` + explicit `@EndUserText.label` on every element. |

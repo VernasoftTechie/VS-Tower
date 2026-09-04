@@ -11,19 +11,25 @@
 // filtering is via @UI.selectionField in the consumption view, same pattern
 // already proven in Stage 1/2.
 //
-// T2 (BUILD_ISSUES_LOG.md): a plain cast(x as abap.dats) on a genuinely
-// blank/initial date (STRTDATE = 00000000 - normal for a scheduled-but-not-
-// yet-run job step) breaks the Fiori runtime with "Property 'StartDate' has
-// invalid value ''" - but ONLY because StartDate was @UI.selectionField
-// (Fiori Elements builds a value-help/visual-filter over it that can't parse
-// the blank value). First attempted fix - mapping initial to an explicit
-// cast(null as abap.dats) - does NOT activate on this system/release:
-// "Unexpected keyword NULL". ABAP CDS view entities don't take a bare NULL
-// literal inside cast() the way plain SQL does. Reverted to plain casts here
-// (proven, activates clean); the actual fix is at the UI-annotation layer -
-// see ZC_TWR_BGJOB, which no longer marks StartDate as a selectionField.
-// Stage 2's blank ValidToDate and Stage 4's blank ChangedOnDate both proved
-// a blank date renders fine as long as it isn't filterable.
+// T2 (BUILD_ISSUES_LOG.md) - two failed attempts before this one:
+//   1. cast(x as abap.dats) + StartDate as @UI.selectionField -> Fiori
+//      runtime: "Property 'StartDate' has invalid value ''" on a genuinely
+//      blank STRTDATE (normal for a scheduled-but-not-yet-run job step).
+//   2. Removing @UI.selectionField (keeping abap.dats) -> SAME runtime
+//      error persists. Disproves the "value-help" theory - the break is not
+//      about filterability, it's that this system's OData V4 / Edm.Date
+//      serialization cannot handle a blank/initial DATS in a row list at
+//      all, filterable or not.
+//   (A third attempt, mapping blank to cast(null as abap.dats), doesn't even
+//   activate - "Unexpected keyword NULL" - CDS view entities don't accept a
+//   bare NULL literal inside cast().)
+// Actual fix: stop using Edm.Date/Edm.TimeOfDay for these four fields.
+// Expose them as plain text (abap.char) instead - Edm.String has no
+// "must be a valid date" parsing constraint, so a blank value is just an
+// empty string, not an error. Blank-safe via an explicit empty-literal cast
+// (a normal, already-proven-safe literal cast - not the null-cast that
+// failed above). Formatting (e.g. "2026-09-04") is a later polish item, not
+// needed to get this table working.
 
 define view entity ZI_TWR_BGJOB
   as select from tbtco
@@ -34,8 +40,12 @@ define view entity ZI_TWR_BGJOB
       cast( case when status = 'F' then 3
                   when status = 'A' then 1
                   else 2 end as abap.int4 )                               as StatusCriticality,
-      cast( strtdate as abap.dats )                                      as StartDate,
-      cast( strttime as abap.tims )                                      as StartTime,
-      cast( enddate as abap.dats )                                       as EndDate,
-      cast( endtime as abap.tims )                                       as EndTime
+      case when strtdate is initial then cast( '' as abap.char( 8 ) )
+           else cast( strtdate as abap.char( 8 ) ) end                    as StartDate,
+      case when strttime is initial then cast( '' as abap.char( 6 ) )
+           else cast( strttime as abap.char( 6 ) ) end                    as StartTime,
+      case when enddate is initial then cast( '' as abap.char( 8 ) )
+           else cast( enddate as abap.char( 8 ) ) end                     as EndDate,
+      case when endtime is initial then cast( '' as abap.char( 6 ) )
+           else cast( endtime as abap.char( 6 ) ) end                     as EndTime
 }

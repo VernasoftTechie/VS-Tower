@@ -9,12 +9,11 @@
 // Plain "select from" query view - same shape as ZC_TWR_DQ_ISSUE /
 // ZC_TWR_SEC_USER (Stages 1-2, proven green).
 //
-// T2 (BUILD_ISSUES_LOG.md): StartDate is deliberately NOT a selectionField -
-// TBTCO-STRTDATE is genuinely blank for a scheduled-but-not-yet-run job, and
-// a filterable date whose value-help meets a blank row breaks the Fiori
-// runtime. Still shown as a plain lineItem/identification column, same as
-// StartTime/EndDate/EndTime below (all proven safe non-filterable, per
-// Stage 2's blank ValidToDate and Stage 4's blank ChangedOnDate).
+// T2 (BUILD_ISSUES_LOG.md): StartDate/StartTime/EndDate/EndTime are now
+// plain text (abap.char) in ZI_TWR_BGJOB, not Edm.Date/Edm.TimeOfDay - a
+// blank job-not-yet-started value broke the runtime as a date regardless of
+// whether the field was filterable. No selectionField on StartDate here
+// either way, to keep this round's change minimal.
 
 define view entity ZC_TWR_BGJOB
   as select from ZI_TWR_BGJOB
