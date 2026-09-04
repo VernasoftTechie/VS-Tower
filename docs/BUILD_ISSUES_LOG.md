@@ -92,7 +92,8 @@ in this table is unverified on this system — check SE11 before using it.
 | `PA0105` | `PERNR SUBTY USRID_LONG BEGDA ENDDA` (subtype `0010` = email, `0020` = mobile) |
 | `PA0009` | `PERNR SUBTY BANKL BANKN BKONT IBAN BEGDA ENDDA` (subtype `0` = main bank) |
 | `PA0006` | `PERNR SUBTY STRAS ORT01 PSTLZ LAND1 BEGDA ENDDA` (subtype `1` = permanent residence) |
-| `USR02` | `BNAME USTYP CLASS UFLAG ERDAT TRDAT GLTGV GLTGB` — field **names** all activated fine (T1 was a runtime rendering error, not an activation error). `USTYP` needs `cast( … as abap.char(1) )` before it reaches OData (T1). `CLASS` unconfirmed — watch for the same symptom. |
+| `USR02` | `BNAME USTYP CLASS UFLAG ERDAT TRDAT GLTGV GLTGB` — field **names** all activated fine (T1 was a runtime rendering error, not an activation error). `USTYP` needs `cast( … as abap.char(1) )` before it reaches OData (T1). `CLASS` confirmed clean (renders, no conversion-exit error). |
+| `TBTCO` | `JOBNAME JOBCOUNT STATUS STRTDATE STRTTIME ENDDATE ENDTIME` — **not yet pulled/activated on this system** (Stage 3). `STATUS` is cast defensively (`abap.char(1)`) from the start this time — T1 is direct proof this system enforces the conversion-exit rule on code fields, not just dates, so Stage 3 applies rule #8 proactively instead of waiting for the same round-trip. |
 
 ---
 
@@ -100,7 +101,15 @@ in this table is unverified on this system — check SE11 before using it.
 
 | # | Symptom | Root cause | Fix | Commit |
 |---|---|---|---|---|
-| T1 | 🔴 **Fiori preview** (`SecurityUser`/`SecuritySummary`): blank screen — "Application could not be started due to technical issues. Do not use conversion ext USTYP here." | `USR02-USTYP`'s data element carries a conversion exit. Same failure class as Employee-360's A24 (`PDATE` on dates), but on a plain code field — the OData V4 / Fiori runtime can't render **any** field with a conversion exit, not just dates. | `cast( ustyp as abap.char( 1 ) ) as UserType` in `ZI_TWR_SEC_USER` — strips the data element, same technique as the date cast. Fixed once, in the interface view, so both consumption views (`ZC_TWR_SEC_USER`, `ZC_TWR_SEC_SUMMARY`) inherit the fix. | pending |
+| T1 | 🔴 **Fiori preview** (`SecurityUser`/`SecuritySummary`): blank screen — "Application could not be started due to technical issues. Do not use conversion ext USTYP here." | `USR02-USTYP`'s data element carries a conversion exit. Same failure class as Employee-360's A24 (`PDATE` on dates), but on a plain code field — the OData V4 / Fiori runtime can't render **any** field with a conversion exit, not just dates. | `cast( ustyp as abap.char( 1 ) ) as UserType` in `ZI_TWR_SEC_USER` — strips the data element, same technique as the date cast. Fixed once, in the interface view, so both consumption views (`ZC_TWR_SEC_USER`, `ZC_TWR_SEC_SUMMARY`) inherit the fix. | 09a7d7b |
+
+**Stage 2 result: confirmed after T1.** `SecurityUser` preview renders —
+4,860 users, `UserType` showing `A` (cast fixed it), `IsLocked` criticality
+icon correct, dates rendering (blank where genuinely unset, e.g. no
+`ValidToDate` — not an error). `UserGroup` (`CLASS`) rendered blank for the
+sample rows with **no runtime error**, so unlike `USTYP` it does **not**
+carry a blocking conversion exit — real empty data, not a T1-style symptom.
+No further action on `CLASS`.
 
 **Stage 1 result: clean.** Pulled into `ZABAP_UTIL`, "Activate All Inactive"
 succeeded first pass, `ZTWR_UI_SRVB_O4` → `DataQualityIssue` preview rendered

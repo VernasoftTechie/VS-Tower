@@ -75,10 +75,16 @@ green build).
 clean on the first pass, `ZTWR_UI_SRVB_O4` preview verified with real data —
 40,529 issues across the four checks. Zero activation errors logged.
 
-**Stage 2 (Security Monitor): in progress.** Source pushed (`ZI_TWR_SEC_USER`,
-`ZC_TWR_SEC_USER`, `ZC_TWR_SEC_SUMMARY`, extended `ZTWR_UI_SRVD`) — see
-`02_solution_architecture.md` §12–13. Awaiting pull/activate/preview and the
-error report (or confirmation of a clean run) for the log.
+**Stage 2 (Security Monitor): done.** Activation hit one runtime error (T1 —
+`USR02-USTYP` conversion exit), fixed with a `cast`, re-pulled, preview
+verified — 4,860 users, lock-status criticality rendering correctly.
+
+**Stage 3 (Background Jobs Monitor): in progress.** Source pushed
+(`ZI_TWR_BGJOB`, `ZC_TWR_BGJOB`, `ZC_TWR_BGJOB_SUMMARY`, extended
+`ZTWR_UI_SRVD`) — see `02_solution_architecture.md` §14–15. `Status` cast
+defensively from the start this time, applying the T1 lesson proactively.
+Awaiting pull/activate/preview and the error report (or confirmation of a
+clean run) for the log.
 
 ---
 
@@ -90,3 +96,4 @@ error report (or confirmation of a clean run) for the log.
 | 2026-09-04 | Rulebook applied. Confirmations round 2 received (Payroll on-prem confirmed; PCC/replication-technique/TMS-RFC resolved as non-blocking by design; package flagged — see §5). D8 (bug-log-before-commit) added. `docs/02_solution_architecture.md` and `docs/BUILD_ISSUES_LOG.md` written. Stage 1 (Data Quality Overview, 4 checks) built and pushed to `/src` — not yet pulled/activated. |
 | 2026-09-04 | Package confirmed as `ZABAP_UTIL` (round 3). Removed `src/package.devc.xml` so this repo doesn't manage that package's description alongside `Utility-Class-and-Method`. Docs updated throughout. |
 | 2026-09-04 | **Stage 1 confirmed green** — pulled, activated clean, preview verified (40,529 rows). Stage 2 (Security Monitor) source written and pushed. |
+| 2026-09-04 | **Stage 2 confirmed green after one fix** — T1 (`USTYP` conversion exit) hit, fixed, re-verified (4,860 users). Stage 3 (Background Jobs Monitor) source written and pushed, applying the T1 lesson proactively. |

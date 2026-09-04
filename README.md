@@ -15,11 +15,13 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
   operational note in `docs/02_solution_architecture.md` §3).
 - Built to the **Vernasoft ABAP & RAP Engineering Rulebook v1.0**.
 
-> **Build status:** Stage 1 (Data Quality Overview) — pulled, activated clean,
-> Fiori preview verified with real data (40,529 issues). Stage 2 (Security
-> Monitor) source pushed, awaiting pull/activate. See
-> `docs/BUILD_ISSUES_LOG.md` before touching any CDS in this repo — read §0
-> first, every activation error goes there before the next stage is written.
+> **Build status:** Stage 1 (Data Quality Overview) and Stage 2 (Security
+> Monitor) both pulled, activated, and verified with real data (40,529 issues;
+> 4,860 users — Stage 2 hit one conversion-exit error, fixed, see
+> `docs/BUILD_ISSUES_LOG.md` T1). Stage 3 (Background Jobs Monitor) source
+> pushed, awaiting pull/activate. Read `docs/BUILD_ISSUES_LOG.md` §0 before
+> touching any CDS in this repo — every activation error goes there before
+> the next stage is written.
 
 ---
 
@@ -45,9 +47,11 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
 |---|---|---|
 | Interface CDS | `ZI_TWR_EMP_BASIC` (anchor), `ZI_TWR_EMP_CONTACT`, `ZI_TWR_EMP_BANK`, `ZI_TWR_DQ_ISSUE` (4-branch check union) | 1 ✅ |
 | Consumption CDS | `ZC_TWR_DQ_ISSUE` (list), `ZC_TWR_DQ_SUMMARY` (donut by category) | 1 ✅ |
-| Interface CDS | `ZI_TWR_SEC_USER` (anchor, `USR02`) | 2 🔄 |
-| Consumption CDS | `ZC_TWR_SEC_USER` (list), `ZC_TWR_SEC_SUMMARY` (donut by lock status) | 2 🔄 |
-| Service | `ZTWR_UI_SRVD` (exposes all of the above) + `ZTWR_UI_SRVB_O4` (OData V4 – UI, published, shipped in the repo) | 1+2 |
+| Interface CDS | `ZI_TWR_SEC_USER` (anchor, `USR02`) | 2 ✅ |
+| Consumption CDS | `ZC_TWR_SEC_USER` (list), `ZC_TWR_SEC_SUMMARY` (donut by lock status) | 2 ✅ |
+| Interface CDS | `ZI_TWR_BGJOB` (anchor, `TBTCO`) | 3 🔄 |
+| Consumption CDS | `ZC_TWR_BGJOB` (list), `ZC_TWR_BGJOB_SUMMARY` (donut by status) | 3 🔄 |
+| Service | `ZTWR_UI_SRVD` (exposes all of the above) + `ZTWR_UI_SRVB_O4` (OData V4 – UI, published, shipped in the repo) | 1+2+3 |
 
 No RAP behavior definition, no custom DDIC tables, no DCL — every object is a
 plain `define view entity … as select from`. Stage 1 checks: Missing Email,
@@ -55,20 +59,18 @@ Missing Cost Center, Missing Position (proxy for Invalid Position), Missing
 Bank/IBAN. Duplicate Employee and Missing Manager are deferred — see
 `docs/02_solution_architecture.md` §8.
 
-## Pull & activate (Stage 2)
+## Pull & activate (Stage 3)
 
-`VS-Tower` is already linked to `ZABAP_UTIL` (Stage 1 pull). To pick up Stage 2:
+`VS-Tower` is already linked to `ZABAP_UTIL`. To pick up Stage 3:
 
-1. Pull the repo again — brings in `ZI_TWR_SEC_USER`, `ZC_TWR_SEC_USER`,
-   `ZC_TWR_SEC_SUMMARY`, and the extended `ZTWR_UI_SRVD`.
+1. Pull the repo again — brings in `ZI_TWR_BGJOB`, `ZC_TWR_BGJOB`,
+   `ZC_TWR_BGJOB_SUMMARY`, and the extended `ZTWR_UI_SRVD`.
 2. Package → **Activate All Inactive ABAP Development Objects** (run twice if
    the first pass leaves cross-references inactive).
-3. If `SecurityUser` / `SecuritySummary` don't show up in the service catalog
-   immediately, re-publish `ZTWR_UI_SRVB_O4` — it references `ZTWR_UI_SRVD` by
-   name/version, so a service definition change sometimes needs an explicit
-   re-publish to pick up.
-4. Preview: open `ZTWR_UI_SRVB_O4` → select `SecurityUser` or
-   `SecuritySummary` → **Preview**.
+3. If `BackgroundJob` / `BackgroundJobSummary` don't show up in the service
+   catalog immediately, re-publish `ZTWR_UI_SRVB_O4`.
+4. Preview: open `ZTWR_UI_SRVB_O4` → select `BackgroundJob` or
+   `BackgroundJobSummary` → **Preview**.
 5. **Report every activation error back verbatim** (object + full message) —
    it gets logged in `docs/BUILD_ISSUES_LOG.md` with the fix before the next
    stage is written.

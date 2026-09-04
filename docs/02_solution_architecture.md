@@ -141,8 +141,8 @@ Employee-360). Maps onto the Phase 1 / Phase 2 / CAP split in
 | Stage | Status | Delivers | Feasibility map section | New custom DDIC? |
 |---|---|---|---|---|
 | **1** | ✅ **Done** — pulled, activated clean, preview verified with real data (40,529 issues) | Data Quality Overview — Missing Email / Cost Center / Position / Bank | §10 (G) | None |
-| **2** | 🔄 In progress (this commit) | Security Monitor — locked users, password age, technical users | §19 (P) | None |
-| 3 | Not started | Background Jobs Monitor | §14 (K) | None |
+| **2** | ✅ **Done** — activation hit T1 (`USTYP` conversion exit), fixed, preview verified (4,860 users) | Security Monitor — locked users, password age, technical users | §19 (P) | None |
+| **3** | 🔄 In progress (this commit) | Background Jobs Monitor | §14 (K) | None |
 | 4 | Not started | Foundation — interface catalog, watched-jobs catalog, check/alert config, snapshot history table | §21 (R) | `ZTWR_CFG_IFACE`, `ZTWR_CFG_JOB`, `ZTWR_CFG_ALERT`, `ZTWR_SNAPSHOT` |
 | 5 | Not started | Integration Monitoring + Inbound Message Monitor (reads Stage 4 catalog) | §6 (C), §7 (D) | `ZTWR_ALERT` (alert store) |
 | 6 | Not started | OData / Gateway Monitor | §8 (E) | None |
@@ -234,3 +234,31 @@ client-specific and unconfirmed. Upgraded once confirmed.
 - **SLG0** — not needed yet (no ABAP class/report in this stage).
 - **Authorization** — none required by design (D2). The dashboard tile itself
   is restricted to HR-and-above by Basis, outside this repo's scope.
+
+## 14. What ships in this commit (Stage 3)
+
+| Object | Type | Purpose |
+|---|---|---|
+| `ZI_TWR_BGJOB` | Interface CDS | Anchor: one row per `TBTCO` job step. `Status` cast to plain `abap.char(1)` proactively (T1 precedent) |
+| `ZC_TWR_BGJOB` | Consumption CDS | List view — job name/count, status with criticality, start/end date+time |
+| `ZC_TWR_BGJOB_SUMMARY` | Consumption CDS | Aggregated by `Status`, for the donut |
+| `ZTWR_UI_SRVD` (extended) | Service Definition | Now exposes `BackgroundJob` and `BackgroundJobSummary` too |
+
+No date-range filter in the CDS (avoids date-arithmetic risk per the "grow
+from a working core" rule) — filtering is interactive, via
+`@UI.selectionField` on `JobName` / `Status` / `StartDate`, the same pattern
+proven twice already. `StatusCriticality`: `F` (finished) → positive,
+`A` (aborted/cancelled) → negative, everything else → neutral. Duration is
+not computed (time arithmetic across midnight is exactly the kind of thing
+Employee-360's log warns about) — raw start/end date+time only, for now.
+
+**Deferred from the dashboard's Background Jobs panel** (not this commit):
+watched-jobs catalog, missed-schedule detection, drill to job log, re-run
+action — all Stage 4+/Phase 2 per the roadmap.
+
+## 15. Pull & activate (Stage 3)
+
+Same procedure as Stage 2 (§13). Preview `BackgroundJob` or
+`BackgroundJobSummary` on `ZTWR_UI_SRVB_O4`; re-publish the binding if the new
+entities don't appear immediately. Report every result — clean or not —
+verbatim for the log.
