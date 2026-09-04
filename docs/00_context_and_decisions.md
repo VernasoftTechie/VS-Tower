@@ -83,8 +83,10 @@ verified — 4,860 users, lock-status criticality rendering correctly.
 All three pulled and activated together, zero activation errors. But using
 `BackgroundJob`'s filter bar surfaced T2 — a genuinely blank `StartDate`
 (normal for a scheduled-but-not-yet-run job) broke Fiori Elements' value-help
-for that filterable date field. Fixed in `ZI_TWR_BGJOB` (every date/time on
-that table now maps blank to an explicit typed null); bundled into the
+for that filterable date field. First fix attempt (typed `null` in the CDS)
+doesn't activate on this system; the real fix removes `@UI.selectionField`
+from `StartDate` in `ZC_TWR_BGJOB` instead — blank dates already render fine
+as a plain, non-filterable column. Bundled into the
 Stage 6 pull for re-verification.
 
 **Stage 6 (Foundation, narrowed): pushed, pull pending.** Just the interface
@@ -117,4 +119,4 @@ blind) is in `02_solution_architecture.md` §8.
 | 2026-09-04 | **Stage 2 confirmed green after one fix** — T1 (`USTYP` conversion exit) hit, fixed, re-verified (4,860 users). Stage 3 (Background Jobs Monitor) source written and pushed, applying the T1 lesson proactively. |
 | 2026-09-04 | Client blocked by a VPN issue, asked to keep building. Stages 4–5 **reordered**: Transport Monitor (local) and Headcount Overview built instead of the original config-tables/Integration-Monitoring plan (new object type + missing client data, respectively — both deferred, not guessed). Stages 3–5 pushed together, pull pending. |
 | 2026-09-04 | **Stages 3–5 confirmed clean** — all pulled and verified together. Stage 6 (interface catalog table only, narrowed from the original 4-table plan) built and pushed — first `TABL` object in this repo. `03_stage7_data_collection.md` written: Stage 7 is blocked on real interface data from the client, not on further build work. |
-| 2026-09-04 | **T2 found and fixed** — `BackgroundJob`'s filter bar broke on a blank `StartDate` (Fiori Elements value-help can't parse an empty date on a filterable field). Fixed in `ZI_TWR_BGJOB`, bundled into the Stage 6 pull. SAP Basis Team confirmed as the default `Owner` for Stage 7's interface catalog. |
+| 2026-09-04 | **T2 found and fixed** — `BackgroundJob`'s filter bar broke on a blank `StartDate` (Fiori Elements value-help can't parse an empty date on a filterable field). First fix (`cast( null as … )` in the CDS) doesn't activate on this system; real fix removes `@UI.selectionField` from `StartDate`. Bundled into the Stage 6 pull. SAP Basis Team confirmed as the default `Owner` for Stage 7's interface catalog. |

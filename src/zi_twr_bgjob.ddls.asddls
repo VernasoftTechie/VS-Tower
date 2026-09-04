@@ -13,15 +13,17 @@
 //
 // T2 (BUILD_ISSUES_LOG.md): a plain cast(x as abap.dats) on a genuinely
 // blank/initial date (STRTDATE = 00000000 - normal for a scheduled-but-not-
-// yet-run job step) still activates fine, but breaks the Fiori runtime with
-// "Property 'StartDate' has invalid value ''" - specifically on a date field
-// marked @UI.selectionField, where Fiori Elements builds a value-help /
-// visual-filter that can't parse the blank value. Fix: map initial dates/
-// times to an explicit typed NULL instead of the DATS/TIMS zero-value, so
-// OData serializes them as "no value" rather than an empty string. Applied
-// to all four date/time fields here, not just StartDate (same table, same
-// risk - EndDate/StartTime/EndTime are just as often blank for a job that
-// hasn't finished/started).
+// yet-run job step) breaks the Fiori runtime with "Property 'StartDate' has
+// invalid value ''" - but ONLY because StartDate was @UI.selectionField
+// (Fiori Elements builds a value-help/visual-filter over it that can't parse
+// the blank value). First attempted fix - mapping initial to an explicit
+// cast(null as abap.dats) - does NOT activate on this system/release:
+// "Unexpected keyword NULL". ABAP CDS view entities don't take a bare NULL
+// literal inside cast() the way plain SQL does. Reverted to plain casts here
+// (proven, activates clean); the actual fix is at the UI-annotation layer -
+// see ZC_TWR_BGJOB, which no longer marks StartDate as a selectionField.
+// Stage 2's blank ValidToDate and Stage 4's blank ChangedOnDate both proved
+// a blank date renders fine as long as it isn't filterable.
 
 define view entity ZI_TWR_BGJOB
   as select from tbtco
@@ -32,12 +34,8 @@ define view entity ZI_TWR_BGJOB
       cast( case when status = 'F' then 3
                   when status = 'A' then 1
                   else 2 end as abap.int4 )                               as StatusCriticality,
-      case when strtdate is initial then cast( null as abap.dats )
-           else cast( strtdate as abap.dats ) end                        as StartDate,
-      case when strttime is initial then cast( null as abap.tims )
-           else cast( strttime as abap.tims ) end                        as StartTime,
-      case when enddate is initial then cast( null as abap.dats )
-           else cast( enddate as abap.dats ) end                         as EndDate,
-      case when endtime is initial then cast( null as abap.tims )
-           else cast( endtime as abap.tims ) end                         as EndTime
+      cast( strtdate as abap.dats )                                      as StartDate,
+      cast( strttime as abap.tims )                                      as StartTime,
+      cast( enddate as abap.dats )                                       as EndDate,
+      cast( endtime as abap.tims )                                       as EndTime
 }

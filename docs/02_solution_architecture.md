@@ -294,10 +294,15 @@ verbatim for the log.
 
 **Update:** activation and the initial preview were clean, but using the
 `Job Name` filter (or otherwise triggering the value-help on `StartDate`)
-surfaced T2 — a blank `StartDate` broke the runtime. Fixed in `ZI_TWR_BGJOB`
-(§14) — bundled into the Stage 6 pull, since both are already queued
-together. Re-verify `BackgroundJob` specifically after this pull, including
-using the filter bar this time, not just the initial unfiltered load.
+surfaced T2 — a blank `StartDate` broke the runtime. A first attempted fix
+(mapping blank dates to `cast( null as abap.dats )` in `ZI_TWR_BGJOB`) does
+**not** activate on this system ("Unexpected keyword NULL") — reverted. The
+actual fix is in `ZC_TWR_BGJOB`: `StartDate` is no longer a
+`@UI.selectionField`, so the value-help that broke on it is never built.
+Full detail in `BUILD_ISSUES_LOG.md` T2. Bundled into the Stage 6 pull, since
+both are already queued together. Re-verify `BackgroundJob` specifically
+after this pull, including using the filter bar this time, not just the
+initial unfiltered load.
 
 ## 16. What ships in this commit (Stage 4 — reordered, see box above)
 
