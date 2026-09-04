@@ -93,7 +93,8 @@ in this table is unverified on this system — check SE11 before using it.
 | `PA0009` | `PERNR SUBTY BANKL BANKN BKONT IBAN BEGDA ENDDA` (subtype `0` = main bank) |
 | `PA0006` | `PERNR SUBTY STRAS ORT01 PSTLZ LAND1 BEGDA ENDDA` (subtype `1` = permanent residence) |
 | `USR02` | `BNAME USTYP CLASS UFLAG ERDAT TRDAT GLTGV GLTGB` — field **names** all activated fine (T1 was a runtime rendering error, not an activation error). `USTYP` needs `cast( … as abap.char(1) )` before it reaches OData (T1). `CLASS` confirmed clean (renders, no conversion-exit error). |
-| `TBTCO` | `JOBNAME JOBCOUNT STATUS STRTDATE STRTTIME ENDDATE ENDTIME` — **not yet pulled/activated on this system** (Stage 3). `STATUS` is cast defensively (`abap.char(1)`) from the start this time — T1 is direct proof this system enforces the conversion-exit rule on code fields, not just dates, so Stage 3 applies rule #8 proactively instead of waiting for the same round-trip. |
+| `TBTCO` | `JOBNAME JOBCOUNT STATUS STRTDATE STRTTIME ENDDATE ENDTIME` — **not yet pulled/activated on this system** (Stage 3, pending — pull was interrupted by a VPN issue). `STATUS` is cast defensively (`abap.char(1)`) from the start this time — T1 is direct proof this system enforces the conversion-exit rule on code fields, not just dates, so Stage 3 applies rule #8 proactively instead of waiting for the same round-trip. |
+| `E070` | `TRKORR TRFUNCTION TRSTATUS AS4USER AS4DATE AS4TIME` — **not yet pulled/activated** (Stage 4). Deliberately **not** joined to `E07T` (short text) — text-table joins were Employee-360's single biggest source of "column unknown" errors (A10); header fields only, for now. `TRFUNCTION`/`TRSTATUS` cast defensively. `StatusCriticality` only claims the two confirmed codes (`D`=modifiable, `R`=released); anything else falls to neutral rather than guessing. |
 
 ---
 

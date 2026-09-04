@@ -79,12 +79,19 @@ clean on the first pass, `ZTWR_UI_SRVB_O4` preview verified with real data —
 `USR02-USTYP` conversion exit), fixed with a `cast`, re-pulled, preview
 verified — 4,860 users, lock-status criticality rendering correctly.
 
-**Stage 3 (Background Jobs Monitor): in progress.** Source pushed
-(`ZI_TWR_BGJOB`, `ZC_TWR_BGJOB`, `ZC_TWR_BGJOB_SUMMARY`, extended
-`ZTWR_UI_SRVD`) — see `02_solution_architecture.md` §14–15. `Status` cast
-defensively from the start this time, applying the T1 lesson proactively.
-Awaiting pull/activate/preview and the error report (or confirmation of a
-clean run) for the log.
+**Stage 3 (Background Jobs Monitor): pushed, pull pending.** Client hit a VPN
+issue and asked to keep building rather than wait — will pull Stages 3–5
+together.
+
+**Stages 4–5: reordered and pushed, pull pending.** The *original* Stage 4
+(config tables) and Stage 5 (Integration Monitoring) were **not** built next —
+config tables need a new, unproven abapGit object type (`TABL`) and nothing
+yet consumes them; Integration Monitoring needs real interface names/log
+techniques this session doesn't have. Built instead, same zero-guesswork
+shape as Stages 1–3: **Stage 4 = Transport Monitor** (local system, `E070`
+only, no text-table join) and **Stage 5 = Headcount Overview** (reuses Stage
+1's `ZI_TWR_EMP_BASIC` directly, no new interface view). Full reasoning in
+`02_solution_architecture.md` §8. Original Stage 4/5 renumbered to 6/7.
 
 ---
 
@@ -97,3 +104,4 @@ clean run) for the log.
 | 2026-09-04 | Package confirmed as `ZABAP_UTIL` (round 3). Removed `src/package.devc.xml` so this repo doesn't manage that package's description alongside `Utility-Class-and-Method`. Docs updated throughout. |
 | 2026-09-04 | **Stage 1 confirmed green** — pulled, activated clean, preview verified (40,529 rows). Stage 2 (Security Monitor) source written and pushed. |
 | 2026-09-04 | **Stage 2 confirmed green after one fix** — T1 (`USTYP` conversion exit) hit, fixed, re-verified (4,860 users). Stage 3 (Background Jobs Monitor) source written and pushed, applying the T1 lesson proactively. |
+| 2026-09-04 | Client blocked by a VPN issue, asked to keep building. Stages 4–5 **reordered**: Transport Monitor (local) and Headcount Overview built instead of the original config-tables/Integration-Monitoring plan (new object type + missing client data, respectively — both deferred, not guessed). Stages 3–5 pushed together, pull pending. |

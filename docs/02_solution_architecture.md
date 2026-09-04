@@ -142,17 +142,46 @@ Employee-360). Maps onto the Phase 1 / Phase 2 / CAP split in
 |---|---|---|---|---|
 | **1** | ✅ **Done** — pulled, activated clean, preview verified with real data (40,529 issues) | Data Quality Overview — Missing Email / Cost Center / Position / Bank | §10 (G) | None |
 | **2** | ✅ **Done** — activation hit T1 (`USTYP` conversion exit), fixed, preview verified (4,860 users) | Security Monitor — locked users, password age, technical users | §19 (P) | None |
-| **3** | 🔄 In progress (this commit) | Background Jobs Monitor | §14 (K) | None |
-| 4 | Not started | Foundation — interface catalog, watched-jobs catalog, check/alert config, snapshot history table | §21 (R) | `ZTWR_CFG_IFACE`, `ZTWR_CFG_JOB`, `ZTWR_CFG_ALERT`, `ZTWR_SNAPSHOT` |
-| 5 | Not started | Integration Monitoring + Inbound Message Monitor (reads Stage 4 catalog) | §6 (C), §7 (D) | `ZTWR_ALERT` (alert store) |
-| 6 | Not started | OData / Gateway Monitor | §8 (E) | None |
-| 7 | Not started | Replication Summary & Error Analysis | §9 (F) | None |
-| 8 | Not started | Remaining KPI tiles, headcount/org donut, New Joiners | §5 (B), §16 (M), §17 (N) | None |
-| 9 | Not started | Payroll basics (areas, runs, PCC-if-present) | §12 (I) | None |
-| 10 | Not started | Alerts list (display-only) + duplicate-employee / extended DQ checks | §15 (L), §10 (G) | None |
-| — | Not started | Freestyle dashboard shell assembling Stages 1–10; Fiori Elements drill-downs per entity | §21 (R) | — |
-| Phase 2 | Not started | Trends (needs Stage 4 snapshot history), Workflow + funnel, Org tree, cert/OAuth/RFC alerts, Performance panel, Transport Monitor (local + TMS RFC) | `01_feasibility_map.md` §25 | per section |
+| **3** | 🔄 Pushed, pull pending (client-side VPN issue — will pull Stages 3–5 together) | Background Jobs Monitor | §14 (K) | None |
+| **4** | 🔄 Pushed, pull pending (this commit) | **Reordered** — Transport Monitor, local system only (was: Foundation config tables) | §20 (Q) | None |
+| **5** | 🔄 Pushed, pull pending (this commit) | **Reordered** — Headcount Overview by Company Code × Personnel Area (was: Integration Monitoring) | §16 (M, partial) | None |
+| 6 | Not started | Foundation — interface catalog, watched-jobs catalog, check/alert config, snapshot history table | §21 (R) | `ZTWR_CFG_IFACE`, `ZTWR_CFG_JOB`, `ZTWR_CFG_ALERT`, `ZTWR_SNAPSHOT` |
+| 7 | Not started | Integration Monitoring + Inbound Message Monitor (reads Stage 6 catalog) | §6 (C), §7 (D) | `ZTWR_ALERT` (alert store) |
+| 8 | Not started | OData / Gateway Monitor | §8 (E) | None |
+| 9 | Not started | Replication Summary & Error Analysis | §9 (F) | None |
+| 10 | Not started | Remaining KPI tiles, org tree/region donut, New Joiners | §5 (B), §16 (M), §17 (N) | None |
+| 11 | Not started | Payroll basics (areas, runs, PCC-if-present) | §12 (I) | None |
+| 12 | Not started | Alerts list (display-only) + duplicate-employee / extended DQ checks | §15 (L), §10 (G) | None |
+| — | Not started | Freestyle dashboard shell assembling Stages 1–12; Fiori Elements drill-downs per entity | §21 (R) | — |
+| Phase 2 | Not started | Trends (needs Stage 6 snapshot history), Workflow + funnel, remote Transport Monitor (TMS RFC), cert/OAuth/RFC alerts, Performance panel | `01_feasibility_map.md` §25 | per section |
 | CAP track | Not started | CPI MPL, SF Recruiting/Performance, ECP payroll, SF workflow | `01_feasibility_map.md` §22 | separate repo |
+
+### Why Stages 4–5 were reordered
+
+The client asked to keep building ahead while blocked by a VPN issue, so
+Stages 3–5 will be pulled and verified together rather than one gate at a
+time. Given that, the **original** Stage 4 (config tables) and Stage 5
+(Integration Monitoring) were deliberately *not* built next:
+
+- **Foundation config tables** need a new abapGit object type this repo has
+  never used — `TABL` (custom database tables). The one proven example in
+  this toolchain (`Utility-Class-and-Method`'s `ZAB_V1_UT_ADPT`) relies on a
+  custom data element for one of its fields — first-time risk on an object
+  type with a stricter, less forgiving schema than CDS. And nothing in this
+  repo actually **consumes** those tables yet (Integration Monitoring, the
+  only stage that needs them, is itself deferred — see below), so building
+  them now is exactly the unused-scaffolding pattern Employee-360's own log
+  warns against (G2). Better to build it once it's needed and verifiable.
+- **Integration Monitoring** needs real interface names and their log
+  technique (IDoc/SOAP/AIF/PTP) to mean anything (`00_context_and_decisions.md`
+  §5 item 3). That's client-specific business information this session
+  doesn't have — guessing it would repeat exactly the kind of fabricated
+  specific the rest of this repo has been careful to avoid.
+
+**Substituted instead:** Transport Monitor (local) and Headcount Overview —
+both zero-new-object-type, zero-business-config-unknown, and built the same
+proven "own anchor + plain select from + defensive cast" shape as Stages 1–3.
+Headcount reuses `ZI_TWR_EMP_BASIC` directly — no new interface view at all.
 
 ## 12. What ships in this commit (Stage 2)
 
@@ -262,3 +291,37 @@ Same procedure as Stage 2 (§13). Preview `BackgroundJob` or
 `BackgroundJobSummary` on `ZTWR_UI_SRVB_O4`; re-publish the binding if the new
 entities don't appear immediately. Report every result — clean or not —
 verbatim for the log.
+
+## 16. What ships in this commit (Stage 4 — reordered, see box above)
+
+| Object | Type | Purpose |
+|---|---|---|
+| `ZI_TWR_TRANSPORT` | Interface CDS | Anchor: one row per `E070` transport request header, local system only |
+| `ZC_TWR_TRANSPORT` | Consumption CDS | List view — request, type, status with criticality, owner, changed-on date/time |
+| `ZC_TWR_TRANSPORT_SUMMARY` | Consumption CDS | Aggregated by `RequestStatus`, for the donut |
+| `ZTWR_UI_SRVD` (extended) | Service Definition | Now exposes `TransportRequestSet` and `TransportSummary` too |
+
+No `E07T` join (short text) — deliberately deferred, see §20 (Q) and the
+Employee-360 A10 precedent. `StatusCriticality` only claims `D`/`R`; other
+status codes render neutral rather than guessed.
+
+## 17. Pull & activate (Stage 4)
+
+Same procedure as Stage 3 (§15). Preview `TransportRequestSet` or
+`TransportSummary`.
+
+## 18. What ships in this commit (Stage 5 — reordered, see box above)
+
+| Object | Type | Purpose |
+|---|---|---|
+| `ZC_TWR_HEADCOUNT` | Consumption CDS | Aggregates `ZI_TWR_EMP_BASIC` (Stage 1) by `CompanyCode` × `PersonnelArea`, for the donut/KPI. **No new interface view.** |
+| `ZTWR_UI_SRVD` (extended) | Service Definition | Now exposes `HeadcountOverview` too |
+
+Grouped by `CompanyCode` × `PersonnelArea` only, **not region** — the
+org-unit-to-region mapping needed for that hasn't been confirmed with the
+client, so it isn't guessed here (upgraded once confirmed, alongside the org
+hierarchy/tree in a later Phase-2 stage).
+
+## 19. Pull & activate (Stage 5)
+
+Same procedure. Preview `HeadcountOverview`.
