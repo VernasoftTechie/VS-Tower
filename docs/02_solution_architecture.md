@@ -138,21 +138,51 @@ the client before the next stage starts (their "safe mode," proven on
 Employee-360). Maps onto the Phase 1 / Phase 2 / CAP split in
 `01_feasibility_map.md` §25.
 
-| Stage | Delivers | Feasibility map section | New custom DDIC? |
-|---|---|---|---|
-| **1** (this commit) | Data Quality Overview — Missing Email / Cost Center / Position / Bank | §10 (G) | None |
-| 2 | Security Monitor — locked users, password age, technical users | §19 (P) | None |
-| 3 | Background Jobs Monitor | §14 (K) | None |
-| 4 | Foundation — interface catalog, watched-jobs catalog, check/alert config, snapshot history table | §21 (R) | `ZTWR_CFG_IFACE`, `ZTWR_CFG_JOB`, `ZTWR_CFG_ALERT`, `ZTWR_SNAPSHOT` |
-| 5 | Integration Monitoring + Inbound Message Monitor (reads Stage 4 catalog) | §6 (C), §7 (D) | `ZTWR_ALERT` (alert store) |
-| 6 | OData / Gateway Monitor | §8 (E) | None |
-| 7 | Replication Summary & Error Analysis | §9 (F) | None |
-| 8 | Remaining KPI tiles, headcount/org donut, New Joiners | §5 (B), §16 (M), §17 (N) | None |
-| 9 | Payroll basics (areas, runs, PCC-if-present) | §12 (I) | None |
-| 10 | Alerts list (display-only) + duplicate-employee / extended DQ checks | §15 (L), §10 (G) | None |
-| — | Freestyle dashboard shell assembling Stages 1–10; Fiori Elements drill-downs per entity | §21 (R) | — |
-| Phase 2 | Trends (needs Stage 4 snapshot history), Workflow + funnel, Org tree, cert/OAuth/RFC alerts, Performance panel, Transport Monitor (local + TMS RFC) | `01_feasibility_map.md` §25 | per section |
-| CAP track | CPI MPL, SF Recruiting/Performance, ECP payroll, SF workflow | `01_feasibility_map.md` §22 | separate repo |
+| Stage | Status | Delivers | Feasibility map section | New custom DDIC? |
+|---|---|---|---|---|
+| **1** | ✅ **Done** — pulled, activated clean, preview verified with real data (40,529 issues) | Data Quality Overview — Missing Email / Cost Center / Position / Bank | §10 (G) | None |
+| **2** | 🔄 In progress (this commit) | Security Monitor — locked users, password age, technical users | §19 (P) | None |
+| 3 | Not started | Background Jobs Monitor | §14 (K) | None |
+| 4 | Not started | Foundation — interface catalog, watched-jobs catalog, check/alert config, snapshot history table | §21 (R) | `ZTWR_CFG_IFACE`, `ZTWR_CFG_JOB`, `ZTWR_CFG_ALERT`, `ZTWR_SNAPSHOT` |
+| 5 | Not started | Integration Monitoring + Inbound Message Monitor (reads Stage 4 catalog) | §6 (C), §7 (D) | `ZTWR_ALERT` (alert store) |
+| 6 | Not started | OData / Gateway Monitor | §8 (E) | None |
+| 7 | Not started | Replication Summary & Error Analysis | §9 (F) | None |
+| 8 | Not started | Remaining KPI tiles, headcount/org donut, New Joiners | §5 (B), §16 (M), §17 (N) | None |
+| 9 | Not started | Payroll basics (areas, runs, PCC-if-present) | §12 (I) | None |
+| 10 | Not started | Alerts list (display-only) + duplicate-employee / extended DQ checks | §15 (L), §10 (G) | None |
+| — | Not started | Freestyle dashboard shell assembling Stages 1–10; Fiori Elements drill-downs per entity | §21 (R) | — |
+| Phase 2 | Not started | Trends (needs Stage 4 snapshot history), Workflow + funnel, Org tree, cert/OAuth/RFC alerts, Performance panel, Transport Monitor (local + TMS RFC) | `01_feasibility_map.md` §25 | per section |
+| CAP track | Not started | CPI MPL, SF Recruiting/Performance, ECP payroll, SF workflow | `01_feasibility_map.md` §22 | separate repo |
+
+## 12. What ships in this commit (Stage 2)
+
+| Object | Type | Purpose |
+|---|---|---|
+| `ZI_TWR_SEC_USER` | Interface CDS | Anchor: one row per `USR02` user master record, with `IsLocked`/`LockCriticality` computed from `UFLAG` |
+| `ZC_TWR_SEC_USER` | Consumption CDS | Query view + minimal `@UI` for a List Report, criticality on lock status |
+| `ZC_TWR_SEC_SUMMARY` | Consumption CDS | Aggregated by `UserType` × `IsLocked`, for the donut |
+| `ZTWR_UI_SRVD` (extended) | Service Definition | Now exposes `SecurityUser` and `SecuritySummary` alongside the Stage 1 entities |
+
+`ZTWR_UI_SRVB_O4` (the binding) is unchanged — it references `ZTWR_UI_SRVD` by
+name/version, not by an enumerated entity list, so no XML edit was needed for
+it. It may still need a re-publish after this pull if the two new entity sets
+don't appear immediately in the service catalog.
+
+**Deferred from the dashboard's Security Monitor panel** (not this commit):
+"Certificates expiring ≤ 30 days" (`STRUST`, shared with the future Alerts
+stage — `01_feasibility_map.md` §15/§19) and "Privileged / dormant admin
+users" (`AGR_USERS`, Phase 2 per the map). Stage 2 ships the four fields with
+the clearest single-table source: locked users, password-change date (raw,
+no aging computation), technical/communication users (`UserType`), and
+`ValidToDate`.
+
+## 13. Pull & activate (Stage 2)
+
+Same procedure as Stage 1 (§10), against the now-linked `ZABAP_UTIL` package.
+Report every activation error back verbatim; log entries continue in
+`BUILD_ISSUES_LOG.md` §1. If `USR02` field names differ on this system from
+§1 of the log's table, that's the first real signal this table needs the same
+per-field verification the PA-infotypes did.
 
 Two items intentionally **not** in Stage 1's Data Quality slice, even though
 they're in the dashboard's Section G:

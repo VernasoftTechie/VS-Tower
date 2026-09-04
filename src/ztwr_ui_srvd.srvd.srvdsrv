@@ -1,5 +1,7 @@
 @EndUserText.label: 'VS Tower - UI Service'
 define service ZTWR_UI_SRVD {
-  expose ZC_TWR_DQ_ISSUE   as DataQualityIssue;
-  expose ZC_TWR_DQ_SUMMARY as DataQualitySummary;
+  expose ZC_TWR_DQ_ISSUE    as DataQualityIssue;
+  expose ZC_TWR_DQ_SUMMARY  as DataQualitySummary;
+  expose ZC_TWR_SEC_USER    as SecurityUser;
+  expose ZC_TWR_SEC_SUMMARY as SecuritySummary;
 }

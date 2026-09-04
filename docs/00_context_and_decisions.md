@@ -71,11 +71,14 @@ green build).
 
 ## 6. Status
 
-Design docs 02 approved for Stage 1. Package confirmed as `ZABAP_UTIL`.
-Stage 1 source is written and pushed (`/src` — Data Quality Overview, 8
-objects, no custom DDIC, no BDEF, no DCL). Not yet pulled/activated in the SAP
-system. Next: link `VS-Tower` to the existing `ZABAP_UTIL` package, pull,
-activate, and report every error back verbatim for the log.
+**Stage 1 (Data Quality Overview): done.** Pulled into `ZABAP_UTIL`, activated
+clean on the first pass, `ZTWR_UI_SRVB_O4` preview verified with real data —
+40,529 issues across the four checks. Zero activation errors logged.
+
+**Stage 2 (Security Monitor): in progress.** Source pushed (`ZI_TWR_SEC_USER`,
+`ZC_TWR_SEC_USER`, `ZC_TWR_SEC_SUMMARY`, extended `ZTWR_UI_SRVD`) — see
+`02_solution_architecture.md` §12–13. Awaiting pull/activate/preview and the
+error report (or confirmation of a clean run) for the log.
 
 ---
 
@@ -86,3 +89,4 @@ activate, and report every error back verbatim for the log.
 | 2026-09-04 | Repo created. Feasibility map + this decisions log written. Environment confirmed (S/4 on-prem, S/4 HCM, on-prem scope only). Decisions D1–D7 locked, incl. **read-only, no CDS/RAP authorization**. 13 open confirmations raised. |
 | 2026-09-04 | Rulebook applied. Confirmations round 2 received (Payroll on-prem confirmed; PCC/replication-technique/TMS-RFC resolved as non-blocking by design; package flagged — see §5). D8 (bug-log-before-commit) added. `docs/02_solution_architecture.md` and `docs/BUILD_ISSUES_LOG.md` written. Stage 1 (Data Quality Overview, 4 checks) built and pushed to `/src` — not yet pulled/activated. |
 | 2026-09-04 | Package confirmed as `ZABAP_UTIL` (round 3). Removed `src/package.devc.xml` so this repo doesn't manage that package's description alongside `Utility-Class-and-Method`. Docs updated throughout. |
+| 2026-09-04 | **Stage 1 confirmed green** — pulled, activated clean, preview verified (40,529 rows). Stage 2 (Security Monitor) source written and pushed. |

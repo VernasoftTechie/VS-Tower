@@ -84,17 +84,25 @@ in this table is unverified on this system — check SE11 before using it.
 | `PA0105` | `PERNR SUBTY USRID_LONG BEGDA ENDDA` (subtype `0010` = email, `0020` = mobile) |
 | `PA0009` | `PERNR SUBTY BANKL BANKN BKONT IBAN BEGDA ENDDA` (subtype `0` = main bank) |
 | `PA0006` | `PERNR SUBTY STRAS ORT01 PSTLZ LAND1 BEGDA ENDDA` (subtype `1` = permanent residence) |
+| `USR02` | `BNAME USTYP CLASS UFLAG ERDAT TRDAT GLTGV GLTGB` — **not yet pulled/activated on this system** (Stage 2). Unlike the PA-infotype table, `USR02` is a kernel-level user-master table stable across every SAP release, so confidence is high, but it still gets the same treatment: report the first Stage 2 activation result here, verified or not. |
 
 ---
 
 ## 1. Issues encountered in this repo
 
-*(empty — first pull not yet run. Every real activation error goes here,
-following the Employee-360 format: symptom / root cause / fix / commit.)*
-
 | # | Symptom | Root cause | Fix | Commit |
 |---|---|---|---|---|
 | — | — | — | — | — |
+
+**Stage 1 result: clean.** Pulled into `ZABAP_UTIL`, "Activate All Inactive"
+succeeded first pass, `ZTWR_UI_SRVB_O4` → `DataQualityIssue` preview rendered
+the filter bar (Personnel Number / Category selection fields), the criticality
+icon on `Severity`, and real data — **40,529 issues** across the four Stage 1
+checks. Zero activation errors. This is the strongest possible signal for
+Stage 2: the whole chain (own anchor views, `#NOT_REQUIRED` throughout, no
+DCL, plain `select from` consumption, published OData V4 binding) is proven
+correct on this system — the §0 pre-flight checklist worked. Reuse the same
+shape for every later stage rather than re-deriving it.
 
 ---
 
