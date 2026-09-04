@@ -1,5 +1,7 @@
 # VS-Tower — Stage 7 Data Collection (Doc 03)
 
+**For:** SAP Basis / Integration team — confirmed as the default responsible
+owner for this reconnaissance.
 **Blocks:** Stage 7 (Integration Monitoring + Inbound Message Monitor —
 `01_feasibility_map.md` §6/§7)
 **Feeds:** `ZTWR_CFG_IFACE` (Stage 6, already pushed — see
@@ -28,7 +30,7 @@ of fabricated specific this repo has avoided everywhere else (see
 | Log technique | `IDOC`, `SOAP`, `AIF`, or `PTP` | SOAP |
 | Log object | The technical identifier that technique uses to log — see below | `EmployeeMasterDataReplicationRequest_In` |
 | Expected frequency | How often it should run | Every 15 min |
-| Owner | Who to contact if it's failing | (a username, or leave blank) |
+| Owner | Who to contact if it's failing | Defaults to **SAP Basis Team** unless a specific interface has a named individual owner — no need to chase down a person per row. |
 
 **"Log object" depends on the technique:**
 - **IDoc** → the message type (e.g. `HRMD_A`, `HRMD_ABA`, or a custom `Z*` type)
@@ -45,14 +47,14 @@ Replication · Bank Details Replication
 
 ## How to get it — two paths
 
-### Path A (fastest): ask whoever set up the SF ↔ S/4 integration
+### Path A (fastest): check your own configuration records first
 
-Your Basis/integration team (or whoever configured SAP Cloud Integration for
-this landscape) can usually answer the whole table above from memory or their
-own configuration docs in a few minutes. This is almost always faster than
-the self-service steps below.
+If this team (or a colleague) set up the SAP Cloud Integration content for
+this landscape, the whole table above is often just a lookup in your own
+integration/cutover documentation — usually faster than the self-service
+steps below.
 
-### Path B (self-service): find it yourself
+### Path B (self-service): find it in the system
 
 **Step 1 — check the jobs Stage 3 already surfaced.** Open the
 `BackgroundJob` preview (or run `SM37`) and filter the job name for `SF*`,

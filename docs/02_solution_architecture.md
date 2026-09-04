@@ -142,7 +142,7 @@ Employee-360). Maps onto the Phase 1 / Phase 2 / CAP split in
 |---|---|---|---|---|
 | **1** | ✅ **Done** — pulled, activated clean, preview verified with real data (40,529 issues) | Data Quality Overview — Missing Email / Cost Center / Position / Bank | §10 (G) | None |
 | **2** | ✅ **Done** — activation hit T1 (`USTYP` conversion exit), fixed, preview verified (4,860 users) | Security Monitor — locked users, password age, technical users | §19 (P) | None |
-| **3** | ✅ **Done** — pulled, activated, previewed clean (client tested all of 3–5 together) | Background Jobs Monitor | §14 (K) | None |
+| **3** | 🔄 T2 fix pushed, re-pull pending — blank `StartDate` broke the Fiori runtime on filter (`BUILD_ISSUES_LOG.md` T2) | Background Jobs Monitor | §14 (K) | None |
 | **4** | ✅ **Done** | **Reordered** — Transport Monitor, local system only (was: Foundation config tables) | §20 (Q) | None |
 | **5** | ✅ **Done** | **Reordered** — Headcount Overview by Company Code × Personnel Area (was: Integration Monitoring) | §16 (M, partial) | None |
 | **6** | 🔄 Pushed, pull pending (this commit) | Foundation, narrowed — interface catalog only (`ZTWR_CFG_IFACE`). Watched-jobs catalog / alert config / snapshot history deferred until their consuming stages (Alerts, Trends) are ready | §21 (R) | `ZTWR_CFG_IFACE` |
@@ -292,6 +292,13 @@ Same procedure as Stage 2 (§13). Preview `BackgroundJob` or
 entities don't appear immediately. Report every result — clean or not —
 verbatim for the log.
 
+**Update:** activation and the initial preview were clean, but using the
+`Job Name` filter (or otherwise triggering the value-help on `StartDate`)
+surfaced T2 — a blank `StartDate` broke the runtime. Fixed in `ZI_TWR_BGJOB`
+(§14) — bundled into the Stage 6 pull, since both are already queued
+together. Re-verify `BackgroundJob` specifically after this pull, including
+using the filter bar this time, not just the initial unfiltered load.
+
 ## 16. What ships in this commit (Stage 4 — reordered, see box above)
 
 | Object | Type | Purpose |
@@ -361,14 +368,18 @@ generator itself isn't something abapGit serializes cleanly (same class of
 risk as the hand-written DDLX metadata extensions Employee-360 dropped at C2),
 so it's a one-time manual step, not shipped in the repo.
 
-## 21. Pull & activate (Stage 6)
+## 21. Pull & activate (Stage 6, plus the Stage 3 T2 fix)
+
+One pull covers both — the T2 fix (§15) and Stage 6 are in the same commit.
 
 1. Pull, then **Activate All Inactive ABAP Development Objects** (twice if
-   needed) — this is the first `TABL` activation in this repo, so treat any
-   error here as high-priority to report verbatim.
-2. Preview `InterfaceCatalog` on `ZTWR_UI_SRVB_O4` — **0 rows is the correct,
+   needed) — this pull includes the first `TABL` activation in this repo, so
+   treat any error on `ZTWR_CFG_IFACE` as high-priority to report verbatim.
+2. Re-verify `BackgroundJob` — use the `Job Name` filter this time, not just
+   the initial unfiltered load, since that's what surfaced T2.
+3. Preview `InterfaceCatalog` on `ZTWR_UI_SRVB_O4` — **0 rows is the correct,
    clean result** (the table ships empty). A runtime error is not.
-3. Report back clean/error either way.
+4. Report back clean/error for both.
 
 ## 22. Stage 7 — blocked, needs data
 

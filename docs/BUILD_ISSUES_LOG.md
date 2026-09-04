@@ -79,6 +79,19 @@ before the first activation, not after.
     re-activate ("Activate All Inactive ABAP Development Objects" on the
     package, twice), before adding the next. Don't ship a large batch of
     unactivated objects in one pull.
+20. **A `Date`/`Time` field marked `@UI.selectionField` breaks the Fiori
+    runtime if any row's underlying value is genuinely blank/initial** —
+    "Property '&lt;X&gt;' has invalid value ''" (T2). Plain
+    `cast( x as abap.dats )` activates fine and even renders fine as a
+    *non*-filterable column (Stage 2's blank `ValidToDate` proved that) — the
+    break is specific to a filterable date where Fiori Elements builds a
+    value-help/visual-filter over the data and can't parse the empty string.
+    Fix in the interface view: map initial to an explicit typed null —
+    `case when x is initial then cast( null as abap.dats ) else cast( x as abap.dats ) end`
+    (times → `abap.tims`). Apply this to **every** date/time in a table where
+    blank values are normal (scheduled-but-not-run jobs, open-ended
+    validities, etc.), not just the one the error names — same table, same
+    risk, cheap to fix together.
 
 ### §1 — Field names verified on this system (safe to reuse)
 
@@ -104,6 +117,7 @@ in this table is unverified on this system — check SE11 before using it.
 | # | Symptom | Root cause | Fix | Commit |
 |---|---|---|---|---|
 | T1 | 🔴 **Fiori preview** (`SecurityUser`/`SecuritySummary`): blank screen — "Application could not be started due to technical issues. Do not use conversion ext USTYP here." | `USR02-USTYP`'s data element carries a conversion exit. Same failure class as Employee-360's A24 (`PDATE` on dates), but on a plain code field — the OData V4 / Fiori runtime can't render **any** field with a conversion exit, not just dates. | `cast( ustyp as abap.char( 1 ) ) as UserType` in `ZI_TWR_SEC_USER` — strips the data element, same technique as the date cast. Fixed once, in the interface view, so both consumption views (`ZC_TWR_SEC_USER`, `ZC_TWR_SEC_SUMMARY`) inherit the fix. | 09a7d7b |
+| T2 | 🔴 **Fiori preview** (`BackgroundJob`): error dialog — "Parameter has invalid value: Parameter IV_VALUE has invalid value.", "Error occurred while processing property 'StartDate' of entity with index 1", "Property 'StartDate' has invalid value ''" | `TBTCO-STRTDATE` is genuinely blank (`00000000`) for a scheduled-but-not-yet-run job step — normal, common data. `StartDate` is marked `@UI.selectionField` in `ZC_TWR_BGJOB`, so Fiori Elements builds a value-help/visual-filter over it; that mechanism can't parse the resulting empty string. Not an activation error — only shows up at runtime, only on a *filterable* date, only when a row has a genuinely blank value. | `ZI_TWR_BGJOB`: every date/time field now maps initial → explicit typed `null` instead of the `DATS`/`TIMS` zero-value (`case when x is initial then cast( null as … ) else cast( x as … ) end`) — applied to all four fields (`StartDate`, `StartTime`, `EndDate`, `EndTime`), not just the one named in the error, since all four share the same blank-value risk on this table. | pending |
 
 **Stage 2 result: confirmed after T1.** `SecurityUser` preview renders —
 4,860 users, `UserType` showing `A` (cast fixed it), `IsLocked` criticality
