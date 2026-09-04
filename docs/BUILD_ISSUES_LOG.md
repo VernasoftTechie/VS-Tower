@@ -24,9 +24,17 @@ before the first activation, not after.
 6. Never `cast` an integer literal to `NUMC` — cast a char literal instead
    (`cast( '00000000' as abap.numc(8) )`, not `cast( 0 as … )`).
 7. `@EndUserText.label` and other VDM annotations ≤ **40 characters**.
-8. **Never expose a raw PA-infotype date** (`BEGDA/ENDDA/GBDAT/…`) to OData —
-   the `PDATE` conversion exit breaks the Fiori runtime. Always
-   `cast( x as abap.dats )`. Times → `cast( x as abap.tims )`.
+8. **Never expose a raw field whose data element carries a conversion exit**
+   to OData — the Fiori runtime fails hard (blank "Application could not be
+   started" screen, not a partial render) with a message naming the exit.
+   Known so far on this system: PA-infotype dates (`BEGDA/ENDDA/GBDAT/…` →
+   `PDATE`, cast to `abap.dats`; times → `abap.tims`) **and** `USR02-USTYP`
+   (→ `cast( x as abap.char( n ) )`, T1). Not just dates — any code field can
+   carry one. When this exact error appears, cast the named field to a plain
+   type in the **interface** view; don't guess which other fields need it
+   pre-emptively, but do re-check every sibling code field on the same table
+   after the fix (`USR02-CLASS` is next in line to watch, unconfirmed either
+   way).
 9. CURR/QUAN fields (amounts, quantities) need `cast( … as abap.dec(n,2) )` —
    plain decimal, no reference-field ceremony, unless the semantic annotation
    is deliberately wanted.
@@ -84,7 +92,7 @@ in this table is unverified on this system — check SE11 before using it.
 | `PA0105` | `PERNR SUBTY USRID_LONG BEGDA ENDDA` (subtype `0010` = email, `0020` = mobile) |
 | `PA0009` | `PERNR SUBTY BANKL BANKN BKONT IBAN BEGDA ENDDA` (subtype `0` = main bank) |
 | `PA0006` | `PERNR SUBTY STRAS ORT01 PSTLZ LAND1 BEGDA ENDDA` (subtype `1` = permanent residence) |
-| `USR02` | `BNAME USTYP CLASS UFLAG ERDAT TRDAT GLTGV GLTGB` — **not yet pulled/activated on this system** (Stage 2). Unlike the PA-infotype table, `USR02` is a kernel-level user-master table stable across every SAP release, so confidence is high, but it still gets the same treatment: report the first Stage 2 activation result here, verified or not. |
+| `USR02` | `BNAME USTYP CLASS UFLAG ERDAT TRDAT GLTGV GLTGB` — field **names** all activated fine (T1 was a runtime rendering error, not an activation error). `USTYP` needs `cast( … as abap.char(1) )` before it reaches OData (T1). `CLASS` unconfirmed — watch for the same symptom. |
 
 ---
 
@@ -92,7 +100,7 @@ in this table is unverified on this system — check SE11 before using it.
 
 | # | Symptom | Root cause | Fix | Commit |
 |---|---|---|---|---|
-| — | — | — | — | — |
+| T1 | 🔴 **Fiori preview** (`SecurityUser`/`SecuritySummary`): blank screen — "Application could not be started due to technical issues. Do not use conversion ext USTYP here." | `USR02-USTYP`'s data element carries a conversion exit. Same failure class as Employee-360's A24 (`PDATE` on dates), but on a plain code field — the OData V4 / Fiori runtime can't render **any** field with a conversion exit, not just dates. | `cast( ustyp as abap.char( 1 ) ) as UserType` in `ZI_TWR_SEC_USER` — strips the data element, same technique as the date cast. Fixed once, in the interface view, so both consumption views (`ZC_TWR_SEC_USER`, `ZC_TWR_SEC_SUMMARY`) inherit the fix. | pending |
 
 **Stage 1 result: clean.** Pulled into `ZABAP_UTIL`, "Activate All Inactive"
 succeeded first pass, `ZTWR_UI_SRVB_O4` → `DataQualityIssue` preview rendered
