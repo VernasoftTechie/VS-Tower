@@ -9,6 +9,14 @@
 // ZI_HR360_EMP_BASIC itself - that entity carries #CHECK + a DCL, which would
 // silently reintroduce the authorization dependency decision D2 rules out.
 // No PA0001-STAT2 on this system - not selected here either.
+//
+// PayrollArea (ABKRS) added for Stage 6 (Payroll Areas Overview) - a
+// DIFFERENT field from PersonnelArea (WERKS) above, common SAP naming trap.
+// Cast to plain char defensively (rule #20/T1 precedent) even though no
+// conversion-exit error has been seen on ABKRS yet - cheaper to cast now
+// than find out at runtime. This view already feeds Stage 1 (ZI_TWR_DQ_ISSUE)
+// and Stage 5 (ZC_TWR_HEADCOUNT); adding a field is additive/backward
+// compatible, doesn't change either of those.
 
 define view entity ZI_TWR_EMP_BASIC
   as select from pa0001 as O
@@ -19,6 +27,7 @@ define view entity ZI_TWR_EMP_BASIC
   key O.pernr                       as EmployeeID,
       O.bukrs                       as CompanyCode,
       O.werks                       as PersonnelArea,
+      cast( O.abkrs as abap.char( 2 ) ) as PayrollArea,
       O.kostl                       as CostCenter,
       O.plans                       as PositionId,
       P.nachn                       as LastName,

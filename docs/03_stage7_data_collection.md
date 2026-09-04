@@ -1,11 +1,18 @@
 # VS-Tower — Stage 7 Data Collection (Doc 03)
 
+> **⏸ ON HOLD — 2026-09-04.** Stage 7 is parked, not being pursued right now:
+> client direction is standard tables only, no customization (decision D9,
+> `00_context_and_decisions.md` §3), and this reconnaissance existed to feed
+> `ZTWR_CFG_IFACE`, the custom interface-catalog table, which has been
+> **retired and removed from the repo** (`02_solution_architecture.md` §20).
+> No action needed on this doc unless that direction changes — kept here as
+> reference for if/when it does, not as an open task.
+
 **For:** SAP Basis / Integration team — confirmed as the default responsible
-owner for this reconnaissance.
+owner for this reconnaissance, if it's ever picked back up.
 **Blocks:** Stage 7 (Integration Monitoring + Inbound Message Monitor —
 `01_feasibility_map.md` §6/§7)
-**Feeds:** `ZTWR_CFG_IFACE` (Stage 6, already pushed — see
-`02_solution_architecture.md` §20)
+**Fed:** `ZTWR_CFG_IFACE` — retired, see the banner above.
 
 ---
 

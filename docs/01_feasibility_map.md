@@ -77,9 +77,16 @@ deltas and averages need the nightly snapshot table (Section H).
 
 ## 6. Section C — Integration Monitoring (inbound interfaces)
 
+> **⏸ On hold, 2026-09-04.** This section's design (below) assumed a Z
+> catalog of monitored interfaces — client direction is now standard tables
+> only, no customization (D9). The catalog was built, worked, and was
+> retired anyway. Parked, not being rebuilt around a lighter workaround. See
+> `02_solution_architecture.md` §20/§23.
+
 Per-interface table (Employee, Position, Cost Center, Payroll, Time, Leave,
 Benefits, Bank Details). Driven by a Z catalog of monitored interfaces so a new
-interface is configuration, not code.
+interface is configuration, not code — the design this section describes,
+**not currently being built** (see the note above).
 
 | Data point | On-prem source | Feasibility | Phase |
 |---|---|---|---|
@@ -93,6 +100,9 @@ interface is configuration, not code.
 | Reprocess / re-run _(not committed)_ | RAP action → `SRT_UTIL` requeue / AIF restart / bgRFC resubmit. **Risk:** data-integrity | Medium+ | post-P2 |
 
 ## 7. Section D — Inbound Message Monitor (reframed "CPI Monitoring")
+
+> **⏸ On hold, 2026-09-04.** Same reason as Section C above — same table,
+> same D9 direction.
 
 The screenshot's CPI panel shows message-processing logs that live in
 Integration Suite. On-prem the equivalent is the SOAP/IDoc inbound message

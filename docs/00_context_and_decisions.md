@@ -39,8 +39,9 @@ points. Every point is inventoried in `01_feasibility_map.md`.
 | D3 | **On-prem scope only** | The ABAP build covers data that physically lives in this S/4HANA system. CPI message logs, SF Recruiting/Performance, ECP payroll, SF/MDF workflow, true CPI availability → CAP/BTP track (see `01_feasibility_map.md` §22). |
 | D4 | **Docs before code** | Design docs 02+ are written and approved before any ABAP object is created. `/src` is added to the repo only when development starts. |
 | D5 | **Snapshot-first for history** | A nightly snapshot Z table + aggregation job is built in Phase 1 (even though the trend charts are Phase 2), because SLG1 / SRT_MONI / Gateway statistics retention is too short to reconstruct history. |
-| D6 | **Config-driven monitoring** | Monitored interfaces, watched jobs, data-quality checks and alert rules live in Z config tables, so scope growth is configuration, not code + transports. |
+| D6 | ~~Config-driven monitoring~~ **Superseded by D9** | Originally: monitored interfaces, watched jobs, checks and alert rules live in Z config tables. Walked back for interfaces specifically — see D9. May still apply later for jobs/checks/alerts if a genuine need (not just "nice to have") shows up. |
 | D7 | **Phasing** | Phase 0 foundation → Phase 1 (~70 read-only points) → Phase 2 (~33 points) → CAP track (6 points). Full plan in `01_feasibility_map.md` §25. |
+| D9 | **Standard tables only — no custom config/catalog tables** | Client direction, 2026-09-04: retrieve data "without much customization... reflect what's available in standard tables. Nothing from customizations." The interface catalog (`ZTWR_CFG_IFACE`) is retired — see §6. Any dashboard panel whose data can't be derived from standard tables alone (Integration Monitoring, Inbound Message Monitor — both need to know which interface uses which technology) is **on hold**, not built with a workaround custom table, until this direction changes. **Open question, not yet asked:** does this also rule out D5's nightly snapshot table (needed for every "vs yesterday" delta and trend chart, since standard log tables don't retain history long enough) and a future alert store? Flagging now rather than rediscovering it the way the interface catalog was — will ask before either is actually needed (Phase 2, not blocking today). |
 
 ## 4. Coverage at a glance
 
@@ -92,26 +93,27 @@ persists** — proving the value-help theory wrong. Actual fix: expose
 
 **Stage 6 (Foundation, narrowed): pushed, hit a labelling bug (T3), fixed.**
 Interface catalog table (`ZTWR_CFG_IFACE`) — first use of the `TABL` object
-type in this repo, built by mirroring `Utility-Class-and-Method`'s one proven
-`TABL` object field-for-field. First preview: 0 rows was correct, but every
-filter/column label showed a raw, sometimes-wrong data-element label instead
-of a business one — `BNAME` (reused for the owner field, proven safe as a
-*select source* in Stage 2) resolved to "Branching name" as a *rollname* on
-this new table, not a username label. Fixed: `IFACE_OWNER` → `CHAR40`; every
-element in `ZI_TWR_CFG_IFACE` now carries an explicit `@EndUserText.label`.
-The other three original Stage-4 tables (watched-jobs
-catalog, alert config, snapshot history) stay deferred until their consuming
-stages exist. Ships empty; a CDS layer over it lets it be verified through
-the same Fiori-preview loop as every other stage (0 rows = correct, not an
-error).
+type in this repo. Activated clean, then fixed a labelling bug (T3). Then
+**retired** (this round): the client's direction is standard tables only, no
+customization, and a manually-maintained catalog table is exactly the kind of
+customization they mean. Removed from the repo — `ZTWR_CFG_IFACE`,
+`ZI_TWR_CFG_IFACE`, `ZC_TWR_CFG_IFACE`, and the `InterfaceCatalog` service
+exposure are all gone. abapGit will likely offer to delete the corresponding
+objects from the system on the next pull (safe to accept — they were empty
+and unused).
 
-**Stage 7 (Integration Monitoring): blocked on data, not on this session.**
-Needs real interface names + log techniques. Client confirmed **SAP Basis
-Team** as the default responsible owner for this reconnaissance —
-`03_stage7_data_collection.md` is addressed to them directly and used as the
-default `Owner` value in `ZTWR_CFG_IFACE` unless a specific interface names
-someone else. Full original Stage 4/5 reasoning (why they weren't built
-blind) is in `02_solution_architecture.md` §8.
+**Stage 7 (Integration Monitoring): on hold, not "blocked."** Not being built
+around the missing interface data anymore — it's parked until the client's
+direction on customization changes, not chased with a lighter workaround.
+`03_stage7_data_collection.md` is kept (marked on hold) in case this comes
+back into scope later; SAP Basis Team is still the default owner if/when it
+does. Full retirement reasoning is in `02_solution_architecture.md` §20.
+
+**Stage 6 replaced: Payroll Area Overview.** Zero new custom DDIC, zero
+manual data entry — adds `PayrollArea` (`ABKRS`) to the already-proven
+`ZI_TWR_EMP_BASIC` (Stage 1) and aggregates it, same shape as Stage 5's
+`ZC_TWR_HEADCOUNT`. Every payroll area actually in use on `PA0001` shows up
+automatically.
 
 ---
 
@@ -128,3 +130,4 @@ blind) is in `02_solution_architecture.md` §8.
 | 2026-09-04 | **Stages 3–5 confirmed clean** — all pulled and verified together. Stage 6 (interface catalog table only, narrowed from the original 4-table plan) built and pushed — first `TABL` object in this repo. `03_stage7_data_collection.md` written: Stage 7 is blocked on real interface data from the client, not on further build work. |
 | 2026-09-04 | **T2 found, fixed on the 3rd attempt** — a blank `StartDate` broke `BackgroundJob` regardless of filterability; real fix exposes it (and `StartTime`/`EndDate`/`EndTime`) as text instead of `Edm.Date`/`Edm.TimeOfDay`. Bundled into the Stage 6 pull. SAP Basis Team confirmed as the default `Owner` for Stage 7's interface catalog. |
 | 2026-09-04 | **T3 found and fixed** — `InterfaceCatalog`'s filter/column labels showed raw data-element text ("Branching name" for the owner field, sourced from a misapplied `BNAME` rollname). Fixed with `CHAR40` + explicit `@EndUserText.label` on every element. |
+| 2026-09-04 | **D9 added; interface catalog retired.** Client direction: standard tables only, no customization for now. `ZTWR_CFG_IFACE` + its CDS layer removed from the repo; Stage 7 (Integration Monitoring) moved from "blocked" to **on hold**, not chased with a lighter workaround. `03_stage7_data_collection.md` kept, marked on hold. Replaced Stage 6 with **Payroll Area Overview** — `PayrollArea` (`ABKRS`) added to `ZI_TWR_EMP_BASIC`, new `ZC_TWR_PAYROLL_AREA` aggregation, zero new custom DDIC. Flagged an open question: does D9 also affect D5's snapshot table / a future alert store — not asked yet, not blocking today. |

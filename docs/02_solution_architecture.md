@@ -129,7 +129,7 @@ classes (Stage 4+) — that is genuine "build once, reuse everywhere."
 | # | Deviation | Rulebook clause | Rationale | Mitigation |
 |---|---|---|---|---|
 | 1 | No `AUTHORITY-CHECK`, no DCL, anywhere in this repo | §6 Security: "Authorization strategy, AUTHORITY-CHECK" | Explicit, repeated client instruction (decision D2): the dashboard is HR-and-above only, enforced entirely at the Fiori tile/PFCG layer by Basis; CDS/RAP return the full dataset by design. | Recorded here for audit/governance sign-off. If the access model ever needs row-level scoping, it is added as DCL at that point — not assumed now. |
-| 2 | Custom Z tables (config catalog, snapshot history, alert store) — not "zero custom DDIC" | §1 "Build once, reuse everywhere" read narrowly | No standard SAP persistence exists for "which interfaces/jobs/checks to watch" or for history beyond SLG1/SRT_MONI's short retention (`01_feasibility_map.md` §21, §24). | Kept to the minimum: config + snapshot + alert store only, introduced in Stage 4, never used to duplicate data that a released CDS view already provides. |
+| 2 | ~~Custom Z tables (config catalog, snapshot history, alert store)~~ **Retired 2026-09-04 (D9)** | §1 "Build once, reuse everywhere" read narrowly | No standard SAP persistence exists for "which interfaces/jobs/checks to watch" or for history beyond SLG1/SRT_MONI's short retention (`01_feasibility_map.md` §21, §24) — that was the original rationale. | **Client direction now overrides it:** standard tables only, no customization. The one table built under this deviation (`ZTWR_CFG_IFACE`) has been removed — §8/§20. This deviation is not currently in use; revisit only if the client's direction changes. |
 
 ## 8. Stage roadmap
 
@@ -142,18 +142,19 @@ Employee-360). Maps onto the Phase 1 / Phase 2 / CAP split in
 |---|---|---|---|---|
 | **1** | ✅ **Done** — pulled, activated clean, preview verified with real data (40,529 issues) | Data Quality Overview — Missing Email / Cost Center / Position / Bank | §10 (G) | None |
 | **2** | ✅ **Done** — activation hit T1 (`USTYP` conversion exit), fixed, preview verified (4,860 users) | Security Monitor — locked users, password age, technical users | §19 (P) | None |
-| **3** | 🔄 T2 fix (3rd attempt) pushed, re-pull pending — blank date broke the Fiori runtime as `Edm.Date` (`BUILD_ISSUES_LOG.md` T2) | Background Jobs Monitor | §14 (K) | None |
+| **3** | ✅ **Done** — T2 fixed (3rd attempt: blank date exposed as text, not `Edm.Date`) | Background Jobs Monitor | §14 (K) | None |
 | **4** | ✅ **Done** | **Reordered** — Transport Monitor, local system only (was: Foundation config tables) | §20 (Q) | None |
 | **5** | ✅ **Done** | **Reordered** — Headcount Overview by Company Code × Personnel Area (was: Integration Monitoring) | §16 (M, partial) | None |
-| **6** | 🔄 Pushed, pull pending (this commit) | Foundation, narrowed — interface catalog only (`ZTWR_CFG_IFACE`). Watched-jobs catalog / alert config / snapshot history deferred until their consuming stages (Alerts, Trends) are ready | §21 (R) | `ZTWR_CFG_IFACE` |
-| 7 | **Blocked — needs data from you**, see §20 | Integration Monitoring + Inbound Message Monitor (reads Stage 6 catalog) | §6 (C), §7 (D) | `ZTWR_ALERT` (alert store) |
+| ~~6~~ | ❌ **Retired 2026-09-04 (D9)** | ~~Foundation, narrowed — interface catalog~~ — client direction: no custom config/catalog tables. Removed from the repo. | — | — |
+| **6** *(replaced)* | ✅ **Done** — T3 fixed (labels) before the retirement, now moot | **Payroll Area Overview** — `PayrollArea` added to `ZI_TWR_EMP_BASIC`, aggregated. Zero new custom DDIC. | §12 (I, partial) | None |
+| 7 | **On hold** (not "blocked") — see the box below | Integration Monitoring + Inbound Message Monitor | §6 (C), §7 (D) | would have needed a catalog — ruled out by D9 |
 | 8 | Not started | OData / Gateway Monitor | §8 (E) | None |
 | 9 | Not started | Replication Summary & Error Analysis | §9 (F) | None |
 | 10 | Not started | Remaining KPI tiles, org tree/region donut, New Joiners | §5 (B), §16 (M), §17 (N) | None |
-| 11 | Not started | Payroll basics (areas, runs, PCC-if-present) | §12 (I) | None |
-| 12 | Not started | Alerts list (display-only) + duplicate-employee / extended DQ checks | §15 (L), §10 (G) | None |
-| — | Not started | Freestyle dashboard shell assembling Stages 1–12; Fiori Elements drill-downs per entity | §21 (R) | — |
-| Phase 2 | Not started | Trends (needs Stage 6-family snapshot history), Workflow + funnel, remote Transport Monitor (TMS RFC), cert/OAuth/RFC alerts, Performance panel | `01_feasibility_map.md` §25 | per section |
+| 11 | Not started | Payroll run status/control record (needs `T569V` field verification — not yet done, see §20) | §12 (I) | None |
+| 12 | Not started | Alerts list (display-only) + duplicate-employee / extended DQ checks | §15 (L), §10 (G) | Open question — does D9 rule this out too? Not asked yet. |
+| — | Not started | Freestyle dashboard shell assembling everything built so far; Fiori Elements drill-downs per entity | §21 (R) | — |
+| Phase 2 | Not started | Trends (needs a snapshot history mechanism — see the D9 open question in `00_context_and_decisions.md` §3), Workflow + funnel, remote Transport Monitor (TMS RFC), cert/OAuth/RFC alerts, Performance panel | `01_feasibility_map.md` §25 | per section |
 | CAP track | Not started | CPI MPL, SF Recruiting/Performance, ECP payroll, SF workflow | `01_feasibility_map.md` §22 | separate repo |
 
 ### Why Stages 4–5 were reordered
@@ -339,66 +340,68 @@ hierarchy/tree in a later Phase-2 stage).
 Same procedure. Preview `HeadcountOverview`. **Result: clean, confirmed by
 the client alongside Stages 3–4 — see `BUILD_ISSUES_LOG.md`.**
 
-## 20. What ships in this commit (Stage 6 — Foundation, narrowed)
+## 20. Stage 6 retired — interface catalog removed
 
-The original Stage 4 plan (§8) had four config/snapshot tables. This commit
-ships **one** — the interface catalog — narrowed for two reasons: it's the
-first use of the `TABL` object type in this repo (see the "why reordered" box
-in §8 for the risk), and the other three (watched-jobs catalog, alert config,
-snapshot history) have no consumer yet (Stage 3's Background Jobs Monitor
-already lists every job without a catalog; Alerts and Trends, the stages that
-would need them, aren't built yet).
+`ZTWR_CFG_IFACE` (+ `ZI_TWR_CFG_IFACE`, `ZC_TWR_CFG_IFACE`) activated clean,
+then needed one labelling fix (T3 — `BUILD_ISSUES_LOG.md`), and worked. It is
+now **removed from the repo** anyway.
 
-| Object | Type | Purpose |
+### Why
+
+Client direction, 2026-09-04: retrieve data "without much customization...
+reflect what's available in standard tables. Nothing from customizations."
+(decision D9, `00_context_and_decisions.md` §3). A manually-maintained Z
+catalog — however small, however well it worked technically — is exactly the
+kind of customization that direction rules out. Rather than argue for keeping
+it, it's retired outright: deleted from `/src`, dropped from `ZTWR_UI_SRVD`.
+On the next pull, abapGit will likely offer to delete the three
+now-repo-absent objects from the system — safe to accept, they were empty and
+unused.
+
+This is a genuine scope narrowing, not a technical failure: the underlying
+problem (different interfaces log to different standard tables depending on
+technology — IDoc/SOAP/AIF) hasn't gone away, and nothing standard replaces
+"know which technology each interface uses." Stage 7 is **on hold** because
+of that, not being worked around.
+
+## 21. Stage 6, replaced — Payroll Area Overview
+
+Zero new custom DDIC, zero manual data entry, same "reuse the proven anchor"
+shape as Stage 5's `ZC_TWR_HEADCOUNT`.
+
+| Object | Change | Purpose |
 |---|---|---|
-| `ZTWR_CFG_IFACE` | Table | Interface catalog — id, name, log technique, log object (message type / service name / AIF interface), expected frequency, owner, active flag. Ships **empty**. |
-| `ZI_TWR_CFG_IFACE` | Interface CDS | Anchor, plain `select from` |
-| `ZC_TWR_CFG_IFACE` | Consumption CDS | List view for maintenance visibility |
-| `ZTWR_UI_SRVD` (extended) | Service Definition | Now exposes `InterfaceCatalog` too |
+| `ZI_TWR_EMP_BASIC` (Stage 1, extended) | +1 field | `PayrollArea` (`ABKRS`, cast defensively per rule #20) — a different field from `PersonnelArea` (`WERKS`), already on this view. Additive; Stage 1 and Stage 5 consumers unaffected. |
+| `ZC_TWR_PAYROLL_AREA` | New | Aggregated by `PayrollArea`, for the donut/KPI — every payroll area actually in use on `PA0001` shows up with no catalog to maintain. |
+| `ZTWR_UI_SRVD` (extended) | Now exposes `PayrollAreaOverview` (replaces `InterfaceCatalog`) |
 
-Every field name is this repo's own choice (new table, not an existing SAP
-one), so there's no field-name-guessing risk the way reading `PA0001` or
-`USR02` blind would carry — the only new risk is the `TABL` XML schema itself,
-mitigated by mirroring `Utility-Class-and-Method`'s one proven `TABL` object
-(`ZAB_V1_UT_ADPT`) field-for-field in shape, reusing its exact `XFELD` data
-element for the active flag.
+Covers the "Payroll Areas" count from the dashboard's Payroll Dashboard panel
+(`01_feasibility_map.md` §12). Payroll run status / control record
+(`T569V`) is **not** attempted here — those field names haven't been
+verified on this system the way `PA0001`/`USR02`/`TBTCO`/`E070` have, and
+"Payroll runs today" is already partially answerable from Stage 3's
+`BackgroundJob` (filter `Job Name` for `RPCALC*`/`PC00_*`) without any new
+object at all.
 
-**Update (T3):** the first version reused `BNAME` for the owner field, and
-had no per-element `@EndUserText.label` — Fiori then showed each field's raw
-underlying data-element label, and `BNAME` turned out to resolve to
-"Branching name" on this system, not a username label. Fixed: `IFACE_OWNER`'s
-rollname is now `CHAR40` (free text, not a real SU01 username anyway), and
-every element in `ZI_TWR_CFG_IFACE` carries its own explicit
-`@EndUserText.label`. Full detail in `BUILD_ISSUES_LOG.md` T3.
+## 22. Pull & activate (Stage 6 replacement, plus the Stage 3 T2 fix)
 
-**How to populate it**, once you have the data (see §22 / the data-collection
-doc): `SE16N` → table `ZTWR_CFG_IFACE` → create entries directly (needs a
-developer key / `S_TABU_DIS` authorization for direct table maintenance), or
-ask Basis to generate a proper maintenance dialog: `SE11` → open the table →
-**Utilities → Table Maintenance Generator** → assign an authorization group
-and function group → generates an `SM30`-style maintenance transaction. The
-generator itself isn't something abapGit serializes cleanly (same class of
-risk as the hand-written DDLX metadata extensions Employee-360 dropped at C2),
-so it's a one-time manual step, not shipped in the repo.
-
-## 21. Pull & activate (Stage 6, plus the Stage 3 T2 fix)
-
-One pull covers both — the T2 fix (§15) and Stage 6, including its own T3
-label fix, are in the same commit.
+One pull covers both — the T2 fix (§15) and the Stage 6 replacement are in
+the same commit.
 
 1. Pull, then **Activate All Inactive ABAP Development Objects** (twice if
-   needed) — this pull includes the first `TABL` activation in this repo, so
-   treat any error on `ZTWR_CFG_IFACE` as high-priority to report verbatim.
+   needed). Expect abapGit to also offer **deleting** `ZTWR_CFG_IFACE` +
+   its two CDS views (removed from the repo, §20) — accept that.
 2. Re-verify `BackgroundJob` — use the `Job Name` filter this time, not just
-   the initial unfiltered load, since that's what surfaced T2.
-3. Preview `InterfaceCatalog` on `ZTWR_UI_SRVB_O4` — **0 rows is still the
-   correct, clean result** (the table ships empty); check that the filter
-   labels and column headers now read "Interface ID" / "Owner" / "Active"
-   etc., not "Char20" / "Branching name" / "Checkbox".
-4. Report back clean/error for both.
+   the initial unfiltered load, since that's what surfaced T2. Dates now
+   display as plain text (e.g. `20260904`), not a formatted date.
+3. Preview `PayrollAreaOverview` on `ZTWR_UI_SRVB_O4` — should show one row
+   per payroll area actually in use, with a headcount.
+4. Report back clean/error for all of the above.
 
-## 22. Stage 7 — blocked, needs data
+## 23. Stage 7 — on hold
 
-Integration Monitoring can't be built without knowing which interfaces
-actually exist and how each one logs. See the dedicated collection guide:
-**[`03_stage7_data_collection.md`](03_stage7_data_collection.md)**.
+Integration Monitoring needs to know which interfaces exist and which
+technology each uses — that can't come from a standard table alone, and a
+custom catalog to hold it is ruled out by D9. Parked, not being worked
+around. `03_stage7_data_collection.md` is kept (marked on hold) in case this
+direction changes later.
