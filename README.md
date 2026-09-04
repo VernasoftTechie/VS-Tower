@@ -18,14 +18,15 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
   operational note in `docs/02_solution_architecture.md` §3).
 - Built to the **Vernasoft ABAP & RAP Engineering Rulebook v1.0**.
 
-> **Build status:** Stages 1, 2, 3, 4, 5 all pulled, activated, and verified
-> clean (Stage 2 hit a conversion-exit error — T1; Stage 3 took three
-> attempts to pin down a blank-date runtime error — T2; both fixed, see
-> `docs/BUILD_ISSUES_LOG.md`). Stage 6 was originally an interface catalog
-> table — activated clean, needed one labelling fix (T3), then was
-> **retired outright** on client direction (standard tables only, no
-> customization) and **replaced** with Payroll Area Overview (pushed,
-> awaiting pull). **Stage 7 (Integration Monitoring) is on hold**, not
+> **Build status:** Stages 1–6 all pulled, activated, and verified clean
+> (Stage 2 — T1, conversion exit; Stage 3 — T2, blank date; Stage 6 —
+> T3, labels; all fixed, see `docs/BUILD_ISSUES_LOG.md`). Stage 6's original
+> design (interface catalog table) was retired on client direction (standard
+> tables only, no customization — D9) and replaced with Payroll Area
+> Overview. **Stage 3 just got a refinement — `BackgroundJobHealth`** — one
+> row per job name, latest run only, pending/error only (client feedback:
+> the old all-history view was too noisy to be useful). Pushed, pull
+> pending. **Stage 7 (Integration Monitoring) is on hold**, not
 > blocked-and-waiting — see `docs/03_stage7_data_collection.md`. Read
 > `docs/BUILD_ISSUES_LOG.md` §0 before touching any CDS in this repo — every
 > activation error goes there before the next stage is written.
@@ -58,19 +59,19 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
 | Interface CDS | `ZI_TWR_SEC_USER` (anchor, `USR02`) | 2 ✅ |
 | Consumption CDS | `ZC_TWR_SEC_USER` (list), `ZC_TWR_SEC_SUMMARY` (donut by lock status) | 2 ✅ |
 | Interface CDS | `ZI_TWR_BGJOB` (anchor, `TBTCO` — date/time fields are text, see T2) | 3 ✅ |
-| Consumption CDS | `ZC_TWR_BGJOB` (list), `ZC_TWR_BGJOB_SUMMARY` (donut by status) | 3 ✅ |
+| Consumption CDS | `ZC_TWR_BGJOB` (exposed as `BackgroundJobHistory`), `ZC_TWR_BGJOB_SUMMARY` (`BackgroundJobHistorySummary`) — full run history, unchanged | 3 ✅ |
+| Interface CDS | `ZI_TWR_BGJOB_LATEST` (helper — `MAX(JobCount)` per job name), `ZI_TWR_BGJOB_HEALTH` (self-join, pending/error only) | 3 *(refined)* 🔄 |
+| Consumption CDS | `ZC_TWR_BGJOB_HEALTH` (`BackgroundJobHealth` — **the primary Background Jobs tile**), `ZC_TWR_BGJOB_HEALTH_SUMMARY` | 3 *(refined)* 🔄 |
 | Interface CDS | `ZI_TWR_TRANSPORT` (anchor, `E070`, local system) | 4 ✅ |
 | Consumption CDS | `ZC_TWR_TRANSPORT` (list), `ZC_TWR_TRANSPORT_SUMMARY` (donut by status) | 4 ✅ |
 | Consumption CDS | `ZC_TWR_HEADCOUNT` (donut by company/personnel area — no new interface view, reuses Stage 1's `ZI_TWR_EMP_BASIC`) | 5 ✅ |
-| Consumption CDS | `ZC_TWR_PAYROLL_AREA` (donut by payroll area — no new interface view, reuses Stage 1's `ZI_TWR_EMP_BASIC`) | 6 🔄 |
+| Consumption CDS | `ZC_TWR_PAYROLL_AREA` (donut by payroll area — no new interface view, reuses Stage 1's `ZI_TWR_EMP_BASIC`) | 6 ✅ |
 | Service | `ZTWR_UI_SRVD` (exposes all of the above) + `ZTWR_UI_SRVB_O4` (OData V4 – UI, published, shipped in the repo) | 1–6 |
 
 **Retired:** `ZTWR_CFG_IFACE` (table) + `ZI_TWR_CFG_IFACE` + `ZC_TWR_CFG_IFACE`
 — removed from the repo 2026-09-04, client direction (no custom
 config/catalog tables). If the corresponding objects are still in the target
-system, the next abapGit pull will likely offer to delete them — safe to
-accept, they were empty and unused. Full reasoning:
-`docs/02_solution_architecture.md` §20.
+system, a pull should have already offered to delete them.
 
 No RAP behavior definition, no custom DDIC tables, no DCL — every object is a
 plain `define view entity … as select from`. Stage 1 checks: Missing Email,
@@ -78,27 +79,29 @@ Missing Cost Center, Missing Position (proxy for Invalid Position), Missing
 Bank/IBAN. Duplicate Employee and Missing Manager are deferred — see
 `docs/02_solution_architecture.md` §8.
 
-## Pull & activate (Stage 6 replacement, plus the Stage 3 T2 fix)
+## Pull & activate (Stage 3 refinement — Background Job Health)
 
-`VS-Tower` is already linked to `ZABAP_UTIL`. One pull covers everything below.
+`VS-Tower` is already linked to `ZABAP_UTIL`.
 
-1. Pull the repo — brings in the `PayrollArea` field on `ZI_TWR_EMP_BASIC`,
-   the new `ZC_TWR_PAYROLL_AREA`, the extended `ZTWR_UI_SRVD`, and the
-   **T2** fix (`BackgroundJob`'s date fields are now text, not `Edm.Date`).
-   It also **removes** `ZTWR_CFG_IFACE` and its two CDS views from the repo
-   tree.
+1. Pull the repo — brings in `ZI_TWR_BGJOB_LATEST` (helper),
+   `ZI_TWR_BGJOB_HEALTH` (self-join), `ZC_TWR_BGJOB_HEALTH`,
+   `ZC_TWR_BGJOB_HEALTH_SUMMARY`, and the extended/renamed `ZTWR_UI_SRVD`.
+   `ZI_TWR_BGJOB`/`ZC_TWR_BGJOB`/`ZC_TWR_BGJOB_SUMMARY` themselves are
+   **unchanged** — only their exposed OData entity-set names changed
+   (`BackgroundJob` → `BackgroundJobHistory`, `BackgroundJobSummary` →
+   `BackgroundJobHistorySummary`).
 2. Package → **Activate All Inactive ABAP Development Objects** (run twice if
-   the first pass leaves cross-references inactive). Expect abapGit to also
-   offer **deleting** the now-repo-absent interface-catalog objects — accept
-   that, they were empty and unused.
-3. Re-check `BackgroundJob` — use the `Job Name` filter again; `StartDate`
-   etc. will now display as plain text (e.g. `20260904`) rather than a
-   formatted date.
-4. Preview `PayrollAreaOverview` on `ZTWR_UI_SRVB_O4` — should show one row
-   per payroll area actually in use, with a headcount.
-5. Report back clean/error for both.
-
-Stage 7 is on hold, not waiting on you — nothing to pull or test for it.
+   the first pass leaves cross-references inactive). This pull's newest
+   construct is the self-join in `ZI_TWR_BGJOB_HEALTH` — treat any error
+   there as high-priority to report verbatim.
+3. Preview **`BackgroundJobHealth`** — should show far fewer rows than
+   before: one per job name, its latest run only, none with status
+   "finished."
+4. Preview `BackgroundJobHistory` — should look exactly as `BackgroundJob`
+   did before (same CDS, only the exposed name changed) — confirms the
+   rename alone didn't disturb anything.
+5. Report back clean/error, and roughly how many rows `BackgroundJobHealth`
+   returns vs. `BackgroundJobHistory`.
 
 ## Post-pull (not in the repo)
 
@@ -109,5 +112,6 @@ Stage 7 is on hold, not waiting on you — nothing to pull or test for it.
 ## Stage roadmap
 
 See `docs/02_solution_architecture.md` §8 for the current plan, including the
-Stage 6 retirement/replacement and why Stage 7 is on hold. Each stage is one
-abapGit pull, deployed and verified before the next stage starts.
+Stage 6 retirement/replacement, the Stage 3 refinement (§24), and why Stage 7
+is on hold. Each stage is one abapGit pull, deployed and verified before the
+next stage starts.

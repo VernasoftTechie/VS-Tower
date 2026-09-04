@@ -115,6 +115,15 @@ manual data entry — adds `PayrollArea` (`ABKRS`) to the already-proven
 `ZC_TWR_HEADCOUNT`. Every payroll area actually in use on `PA0001` shows up
 automatically.
 
+**Stage 3 refined: Background Job Health.** Client feedback — a raw dump of
+every job step (mostly successful, mostly repeats) isn't a monitor, it's
+noise for an administrator. New `BackgroundJobHealth` shows one row per job
+**name**, its most recent run only, and only when that run isn't a clean
+finish (self-join to a `MAX(JobCount)` helper view, not a window function —
+see `02_solution_architecture.md` §24 for why). Old `BackgroundJob` renamed
+`BackgroundJobHistory` and kept as the unchanged drill-down entity. Pushed,
+pull pending.
+
 ---
 
 ## Change log
@@ -130,4 +139,6 @@ automatically.
 | 2026-09-04 | **Stages 3–5 confirmed clean** — all pulled and verified together. Stage 6 (interface catalog table only, narrowed from the original 4-table plan) built and pushed — first `TABL` object in this repo. `03_stage7_data_collection.md` written: Stage 7 is blocked on real interface data from the client, not on further build work. |
 | 2026-09-04 | **T2 found, fixed on the 3rd attempt** — a blank `StartDate` broke `BackgroundJob` regardless of filterability; real fix exposes it (and `StartTime`/`EndDate`/`EndTime`) as text instead of `Edm.Date`/`Edm.TimeOfDay`. Bundled into the Stage 6 pull. SAP Basis Team confirmed as the default `Owner` for Stage 7's interface catalog. |
 | 2026-09-04 | **T3 found and fixed** — `InterfaceCatalog`'s filter/column labels showed raw data-element text ("Branching name" for the owner field, sourced from a misapplied `BNAME` rollname). Fixed with `CHAR40` + explicit `@EndUserText.label` on every element. |
+| 2026-09-04 | D9 added; interface catalog retired; Stage 6 replaced with Payroll Area Overview (see the two entries above this one). |
+| 2026-09-04 | **Stage 3 refined: Background Job Health.** Client feedback that a raw job-step dump isn't a usable monitor. `ZI_TWR_BGJOB_LATEST` (helper, `MAX(JobCount)` per `JobName`) + `ZI_TWR_BGJOB_HEALTH` (self-join, filtered `Status <> 'F'`) + `ZC_TWR_BGJOB_HEALTH`/`_SUMMARY` built and pushed. `BackgroundJob`/`BackgroundJobSummary` renamed to `BackgroundJobHistory`/`BackgroundJobHistorySummary` in the service (same underlying CDS, unchanged). Pull pending. |
 | 2026-09-04 | **D9 added; interface catalog retired.** Client direction: standard tables only, no customization for now. `ZTWR_CFG_IFACE` + its CDS layer removed from the repo; Stage 7 (Integration Monitoring) moved from "blocked" to **on hold**, not chased with a lighter workaround. `03_stage7_data_collection.md` kept, marked on hold. Replaced Stage 6 with **Payroll Area Overview** — `PayrollArea` (`ABKRS`) added to `ZI_TWR_EMP_BASIC`, new `ZC_TWR_PAYROLL_AREA` aggregation, zero new custom DDIC. Flagged an open question: does D9 also affect D5's snapshot table / a future alert store — not asked yet, not blocking today. |

@@ -143,6 +143,7 @@ Employee-360). Maps onto the Phase 1 / Phase 2 / CAP split in
 | **1** | ✅ **Done** — pulled, activated clean, preview verified with real data (40,529 issues) | Data Quality Overview — Missing Email / Cost Center / Position / Bank | §10 (G) | None |
 | **2** | ✅ **Done** — activation hit T1 (`USTYP` conversion exit), fixed, preview verified (4,860 users) | Security Monitor — locked users, password age, technical users | §19 (P) | None |
 | **3** | ✅ **Done** — T2 fixed (3rd attempt: blank date exposed as text, not `Edm.Date`) | Background Jobs Monitor | §14 (K) | None |
+| **3** *(refined)* | 🔄 Pushed, pull pending | **`BackgroundJobHealth`** — one row per job name (latest run only), pending/error only. See §24. `BackgroundJobHistory` (renamed from the old `BackgroundJob`) stays as the drill-down/full-history entity, unchanged. | §14 (K) | None |
 | **4** | ✅ **Done** | **Reordered** — Transport Monitor, local system only (was: Foundation config tables) | §20 (Q) | None |
 | **5** | ✅ **Done** | **Reordered** — Headcount Overview by Company Code × Personnel Area (was: Integration Monitoring) | §16 (M, partial) | None |
 | ~~6~~ | ❌ **Retired 2026-09-04 (D9)** | ~~Foundation, narrowed — interface catalog~~ — client direction: no custom config/catalog tables. Removed from the repo. | — | — |
@@ -405,3 +406,72 @@ technology each uses — that can't come from a standard table alone, and a
 custom catalog to hold it is ruled out by D9. Parked, not being worked
 around. `03_stage7_data_collection.md` is kept (marked on hold) in case this
 direction changes later.
+
+## 24. Stage 3 refinement — Background Job Health
+
+**Client feedback:** `BackgroundJob` (renamed `BackgroundJobHistory`) shows
+every job **step** ever run — mostly successful, mostly repeats of the same
+job name. Not useful for an administrator glancing at a dashboard; too much
+noise to have any signal. Ask: one row per job **name**, only its most
+recent run, and only shown if that run isn't a clean finish.
+
+### Why a self-join, not a window function
+
+The textbook SQL answer to "latest row per group" is a window function
+(`ROW_NUMBER() OVER (PARTITION BY … ORDER BY …)`). Deliberately **not**
+used — no proven example of that syntax in this repo, and three of the last
+few rounds (T1–T3) were exactly "assumed-valid CDS syntax that wasn't."
+Instead: a small `GROUP BY JobName, MAX(JobCount)` helper view
+(`ZI_TWR_BGJOB_LATEST`) joined back to the base job list — the same
+aggregation shape already proven five times over (every `_SUMMARY`/
+`_HEADCOUNT`/`_PAYROLL_AREA` view in this repo), plus an ordinary join, the
+same construct used since Stage 1. Zero new SQL constructs.
+
+`MAX(JobCount)` is safe as a plain aggregate: `JOBCOUNT` is TBTCO's own
+fixed-width, zero-padded run-sequence number, so string-max and
+numeric-max agree (same reasoning as why the T2 fix's `YYYYMMDD` text sorts
+correctly without a real date type).
+
+### What ships
+
+| Object | Type | Purpose |
+|---|---|---|
+| `ZI_TWR_BGJOB_LATEST` | Interface CDS (helper) | `JobName` → `MAX(JobCount)`. Not exposed to the service. |
+| `ZI_TWR_BGJOB_HEALTH` | Interface CDS | Self-join to `ZI_TWR_BGJOB` on `(JobName, JobCount) = (JobName, LatestJobCount)`, filtered `WHERE Status <> 'F'`. One row per job name, pending/error only. |
+| `ZC_TWR_BGJOB_HEALTH` | Consumption CDS | List view — same `@UI` shape as the history view. |
+| `ZC_TWR_BGJOB_HEALTH_SUMMARY` | Consumption CDS | Donut by `Status`, measure `JobNameCount` (deliberately not `JobStepCount` — this counts distinct names, not raw steps). |
+| `ZTWR_UI_SRVD` (extended, renamed) | Service Definition | `BackgroundJobHealth` / `BackgroundJobHealthSummary` (new, primary) + `BackgroundJobHistory` / `BackgroundJobHistorySummary` (renamed from `BackgroundJob`/`BackgroundJobSummary` — same underlying CDS, unchanged, only the exposed alias changed, so no reactivation risk to what was already proven). |
+
+### Status-code caveat, carried over
+
+`F` (finished) and `A` (aborted/cancelled) are confirmed — already driving
+`StatusCriticality` in production. `P`/`S`/`Y`/`R` (scheduled / released /
+ready / running — shown as "pending") are **not** independently verified on
+this system yet. If any of them turns out to mean something else, only the
+*colour* is affected — the filter itself only tests `Status <> 'F'`, so a
+pending job is never hidden regardless of which of those four codes it
+actually is.
+
+### Deliberately not included this round
+
+Filtering by job-**name** pattern (so unrelated Basis/system jobs don't
+crowd out SF-related ones) — needs real job names, the same data gap Stage 7
+is on hold for (§23). This round only fixes status/dedup noise; a name
+filter can layer on top once that data exists, without touching this design.
+
+## 25. Pull & activate (Stage 3 refinement)
+
+1. Pull — brings in `ZI_TWR_BGJOB_LATEST`, `ZI_TWR_BGJOB_HEALTH`,
+   `ZC_TWR_BGJOB_HEALTH`, `ZC_TWR_BGJOB_HEALTH_SUMMARY`, and the renamed/
+   extended `ZTWR_UI_SRVD`. `ZI_TWR_BGJOB`/`ZC_TWR_BGJOB`/`ZC_TWR_BGJOB_SUMMARY`
+   are unchanged (only their exposed OData names changed).
+2. **Activate All Inactive** (twice if needed) — the self-join is the newest
+   construct in this repo; treat any error here as high-priority.
+3. Preview `BackgroundJobHealth` — should show far fewer rows than
+   `BackgroundJobHistory` (renamed from `BackgroundJob`), one per job name,
+   none with `Status = F`.
+4. Preview `BackgroundJobHistory` — should look exactly as `BackgroundJob`
+   did before (same CDS, only the exposed name changed) — confirms the
+   rename didn't disturb the working view.
+5. Report back clean/error, and roughly how many rows `BackgroundJobHealth`
+   returns vs. `BackgroundJobHistory`.

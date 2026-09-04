@@ -1,13 +1,15 @@
 @EndUserText.label: 'VS Tower - UI Service'
 define service ZTWR_UI_SRVD {
-  expose ZC_TWR_DQ_ISSUE         as DataQualityIssue;
-  expose ZC_TWR_DQ_SUMMARY       as DataQualitySummary;
-  expose ZC_TWR_SEC_USER         as SecurityUser;
-  expose ZC_TWR_SEC_SUMMARY      as SecuritySummary;
-  expose ZC_TWR_BGJOB            as BackgroundJob;
-  expose ZC_TWR_BGJOB_SUMMARY    as BackgroundJobSummary;
-  expose ZC_TWR_TRANSPORT        as TransportRequestSet;
-  expose ZC_TWR_TRANSPORT_SUMMARY as TransportSummary;
-  expose ZC_TWR_HEADCOUNT        as HeadcountOverview;
-  expose ZC_TWR_PAYROLL_AREA     as PayrollAreaOverview;
+  expose ZC_TWR_DQ_ISSUE            as DataQualityIssue;
+  expose ZC_TWR_DQ_SUMMARY          as DataQualitySummary;
+  expose ZC_TWR_SEC_USER            as SecurityUser;
+  expose ZC_TWR_SEC_SUMMARY         as SecuritySummary;
+  expose ZC_TWR_BGJOB_HEALTH        as BackgroundJobHealth;
+  expose ZC_TWR_BGJOB_HEALTH_SUMMARY as BackgroundJobHealthSummary;
+  expose ZC_TWR_BGJOB               as BackgroundJobHistory;
+  expose ZC_TWR_BGJOB_SUMMARY       as BackgroundJobHistorySummary;
+  expose ZC_TWR_TRANSPORT           as TransportRequestSet;
+  expose ZC_TWR_TRANSPORT_SUMMARY   as TransportSummary;
+  expose ZC_TWR_HEADCOUNT           as HeadcountOverview;
+  expose ZC_TWR_PAYROLL_AREA        as PayrollAreaOverview;
 }
