@@ -60,6 +60,37 @@
         </f:Card>
       </l:Grid>
 
+      <!-- Action Center - what needs attention, and who to call. Leads the
+           page: a technical manager scans this first, drills into the
+           per-domain sections below only when they need more detail. -->
+      <l:Grid defaultSpan="XL12 L12 M12 S12" hSpacing="1" vSpacing="1" class="sapUiSmallMarginBottom">
+        <f:Card class="ctCard ctActionCard">
+          <f:header><card:Header title="{i18n>cardAction}" subtitle="{i18n>cardActionSub}"/></f:header>
+          <f:content>
+            <Table items="{/action/items}" growing="true" growingThreshold="12" mode="None" noDataText="{i18n>actionNone}">
+              <columns>
+                <Column><Text text="{i18n>colDomain}"/></Column>
+                <Column><Text text="{i18n>colItem}"/></Column>
+                <Column><Text text="{i18n>colDetail}"/></Column>
+                <Column><Text text="{i18n>colStatus}"/></Column>
+                <Column><Text text="{i18n>colContact}"/></Column>
+              </columns>
+              <items>
+                <ColumnListItem>
+                  <cells>
+                    <ObjectStatus text="{domain}" state="None"/>
+                    <Text text="{item}"/>
+                    <Text text="{detail}"/>
+                    <ObjectStatus text="{status}" state="{= ${criticality} === 1 ? 'Error' : 'Warning' }"/>
+                    <Text text="{contact}"/>
+                  </cells>
+                </ColumnListItem>
+              </items>
+            </Table>
+          </f:content>
+        </f:Card>
+      </l:Grid>
+
       <!-- Data Quality -->
       <l:Grid defaultSpan="XL5 L5 M12 S12" hSpacing="1" vSpacing="1" class="sapUiSmallMarginBottom">
         <f:Card class="ctCard">
@@ -153,12 +184,14 @@
               <columns>
                 <Column><Text text="{i18n>colJobName}"/></Column>
                 <Column><Text text="{i18n>colStatus}"/></Column>
+                <Column><Text text="{i18n>colOwner}"/></Column>
               </columns>
               <items>
                 <ColumnListItem>
                   <cells>
                     <Text text="{JobName}"/>
                     <ObjectStatus text="{Status}" state="{= ${StatusCriticality} === 1 ? 'Error' : ${StatusCriticality} === 3 ? 'Success' : 'Warning' }"/>
+                    <Text text="{Owner}"/>
                   </cells>
                 </ColumnListItem>
               </items>
@@ -185,7 +218,30 @@
       </l:Grid>
 
       <!-- Transport -->
-      <l:Grid defaultSpan="XL4 L4 M12 S12" hSpacing="1" vSpacing="1" class="sapUiSmallMarginBottom">
+      <l:Grid defaultSpan="XL3 L3 M6 S12" hSpacing="1" vSpacing="1" class="sapUiSmallMarginBottom">
+        <f:Card class="ctCard">
+          <f:header><card:Header title="{i18n>cardTransportByOwner}" subtitle="{i18n>cardTransportByOwnerSub}"/></f:header>
+          <f:content>
+            <Table items="{/transport/byOwner}" growing="true" growingThreshold="10" mode="None">
+              <columns>
+                <Column><Text text="{i18n>colOwnerId}"/></Column>
+                <Column hAlign="End"><Text text="{i18n>colOpen}"/></Column>
+                <Column hAlign="End"><Text text="{i18n>colReleased}"/></Column>
+                <Column hAlign="End"><Text text="{i18n>colTotal}"/></Column>
+              </columns>
+              <items>
+                <ColumnListItem>
+                  <cells>
+                    <Text text="{owner}"/>
+                    <ObjectStatus text="{open}" state="{= ${open} > 0 ? 'Warning' : 'None' }"/>
+                    <ObjectStatus text="{released}" state="Success"/>
+                    <Text text="{total}"/>
+                  </cells>
+                </ColumnListItem>
+              </items>
+            </Table>
+          </f:content>
+        </f:Card>
         <f:Card class="ctCard">
           <f:header><card:Header title="{i18n>cardTransportStatus}" subtitle="{i18n>cardTransportStatusSub}"/></f:header>
           <f:content>
@@ -226,12 +282,15 @@
             <Table items="{/transport/recent}" growing="true" growingThreshold="8" mode="None">
               <columns>
                 <Column><Text text="{i18n>colRequest}"/></Column>
+                <Column><Text text="{i18n>colStatus}"/></Column>
                 <Column><Text text="{i18n>colOwner}"/></Column>
               </columns>
               <items>
                 <ColumnListItem>
                   <cells>
                     <Text text="{TransportRequest}"/>
+                    <ObjectStatus text="{= ${RequestStatus} === 'D' ? ${i18n>statusModifiable} : ${i18n>statusReleased} }"
+                                  state="{= ${StatusCriticality} === 3 ? 'Success' : 'Warning' }"/>
                     <Text text="{Owner}"/>
                   </cells>
                 </ColumnListItem>

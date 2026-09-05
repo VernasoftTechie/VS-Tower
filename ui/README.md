@@ -5,13 +5,19 @@ own `dashboard` app: KPI tiles + donut charts + tables, reading the live
 OData V4 service. Talks to the **existing** service `ZTWR_UI_SRVD` — no
 backend change.
 
-> **First cut — not yet deployed or visually verified.** Written the same
-> way the ABAP layer was: following a proven pattern (this repo copies
-> Employee-360's dashboard app structure line-for-line where the shape is
-> the same), but genuinely untested until you deploy it. Treat the first
+> **First deploy attempted 2026-09-05 — two tooling issues found and fixed**
+> (see Troubleshooting below). Not yet re-deployed/visually verified since.
+> Written the same way the ABAP layer was: following a proven pattern (this
+> repo copies Employee-360's dashboard app structure line-for-line where the
+> shape is the same), but genuinely untested until it renders. Treat every
 > deploy like the ABAP stages — report back whatever you see, including a
 > blank/broken render, and it gets fixed the same way T1–T4 were: logged,
 > diagnosed, corrected, no guessing.
+>
+> **Reframed 2026-09-05 around a technical-manager use case** — see "What
+> this covers" below. The page now leads with an **Action Center** (what
+> needs attention, who to contact) instead of opening straight into
+> per-domain donuts.
 
 ---
 
@@ -35,7 +41,12 @@ In **`controltower/ui5-deploy.yaml`** replace:
 
 ### 2. Set your SAP credentials (so the deploy can log in)
 
-In the terminal, before deploying:
+Easiest: copy **`controltower/.env.example`** to **`controltower/.env`** (same
+folder) and fill in your real username/password. `.env` is gitignored —
+it never gets committed. `ui5-deploy.yaml` reads `ABAP_USER`/`ABAP_PASSWORD`
+from it automatically at deploy time — no shell export needed.
+
+Alternatively, set them in the terminal for that session only:
 ```bash
 # Windows PowerShell
 $env:ABAP_USER="YOURSAPUSER"
@@ -56,7 +67,7 @@ npm run deploy
 ```
 
 This builds the app and uploads it as a **BSP application**
-(`ZTWR_CONTROL_TOWER`) into package `ZABAP_UTIL` on your transport (the same
+(`ZCONTROL_TOWER`) into package `ZABAP_UTIL` on your transport (the same
 package the CDS/RAP layer already lives in — confirmed shared,
 `docs/02_solution_architecture.md` §3). Confirm the prompts.
 
@@ -64,7 +75,7 @@ package the CDS/RAP layer already lives in — confirmed shared,
 
 Straight browser URL (you must be logged into SAP in that browser):
 ```
-https://<your-host>:<port>/sap/bc/ui5_ui5/sap/ztwr_control_tower/index.html
+https://<your-host>:<port>/sap/bc/ui5_ui5/sap/zcontrol_tower/index.html
 ```
 
 ### 5. (Later) put it on the Fiori Launchpad — needs Basis
@@ -122,17 +133,31 @@ same 2026-09-05 review. All motion respects `prefers-reduced-motion` — see
 
 ## What this covers, and what it doesn't yet
 
-All 6 stages/refinements: Data Quality, Security, Background Job Health,
-Transport (by status and by type), Workforce (headcount by company,
-by employee group, payroll areas), and the new Workflow Item Overview
-(raw type/status counts — not yet the mock-up's Pending/Escalated/Overdue
-semantics, same caveat as the CDS side, `00_context_and_decisions.md` §8).
+**Leads with the Action Center** (2026-09-05, technical-manager framing) —
+one table, worst item first, pulling from every domain below: Data Quality
+issue, locked user, job needing attention, open transport, in-flight
+workflow item — each row with a **Contact** column (who to loop in: the
+job's `SDLUNAME`/scheduler, the transport's `AS4USER`/owner, or a fixed team
+name for Security/Data Quality where there's no per-record owner in
+standard tables). Below it, all 6 stages/refinements as before: Data
+Quality, Security, Background Job Health (now with a Scheduled-By column),
+Transport (by status, by type, **and now by Owner** — open vs. released
+count per developer/consultant ID), Workforce (headcount by company, by
+employee group, payroll areas), and Workflow Item Overview (raw type/status
+counts — not yet the mock-up's Pending/Escalated/Overdue semantics, same
+caveat as the CDS side, `00_context_and_decisions.md` §8).
+
+"Recent Transport Requests" now shows **only queued ones** (Modifiable or
+Released-not-yet-imported) — filtered at the OData source, not client-side
+— per the client's ask not to show requests already moved out of the
+landscape.
 
 Not on this dashboard: Alerts (planned as a KPI-strip composition over
 these same cards — the 4 tiles at the top already do this for Data
-Quality/Security/Jobs/Transport; extend the same way for any more), and
-anything from `docs/00_context_and_decisions.md` §7's "not built" table —
-there's no data behind those yet, so no card was added for them.
+Quality/Security/Jobs/Transport; extend the same way for any more), a real
+"Contact" for Workflow items (needs `SWWUSERWI`, not built), and anything
+from `docs/00_context_and_decisions.md` §7's "not built" table — there's no
+data behind those yet, so no card was added for them.
 
 ## Troubleshooting
 
@@ -140,6 +165,9 @@ there's no data behind those yet, so no card was added for them.
 |---|---|
 | `deploy` fails "401 / auth" | wrong `ABAP_USER` / `ABAP_PASSWORD`, or user lacks `S_DEVELOP` for BSP + the transport |
 | `deploy` "transport not found / not modifiable" | the transport ID is wrong or already released — use an open one |
+| `deploy` "Loading archive has failed" | **hit on first deploy, fixed** — `package.json`'s `deploy` script had `--archive-path dist`, which doesn't match how `fiori deploy` builds/reads the archive on this tooling version. Fixed: removed the flag (`npm run build && fiori deploy --config ui5-deploy.yaml --yes`). Already fixed in this repo — only relevant if you've hand-edited the script. |
+| `deploy` "The application name must be 15 characters or shorter" | **hit on first deploy, fixed** — `ZTWR_CONTROL_TOWER` is 18 characters; BSP/SAPUI5 repository names cap at 15, same rule as any BSP app. Renamed to `ZCONTROL_TOWER` (14 chars) in `ui5-deploy.yaml` and everywhere it's referenced. If you rename it again, keep it ≤15 chars. |
 | "service not found" | `/IWFND/V4_ADMIN` → confirm `ZTWR_UI_SRVB_O4` is published in this client |
+| every donut showed "Title of Chart" and no numbers | **hit on first visual review, fixed** — no VizFrame had ever had its title/legend/data-label config set, so sap.viz fell back to its placeholder title and showed no value labels at all. Fixed in `Dashboard.controller.js` (`_configureCharts`): title off (the Card header already shows it), legend on, data labels on (`type: "value"` — the raw count, not a percentage). |
 | a card/chart is blank, others work | that entity's `_read()` call likely failed — open the browser console, report the exact error, same as an ABAP activation error |
 | every card blank, page loads | check the OData service URL in `manifest.json` matches your actual service binding path (`/IWFND/V4_ADMIN` shows the real path) |

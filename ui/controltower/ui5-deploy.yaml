@@ -18,7 +18,7 @@ builder:
           username: env:ABAP_USER
           password: env:ABAP_PASSWORD
         app:
-          name: ZTWR_CONTROL_TOWER
+          name: ZCONTROL_TOWER
           package: ZABAP_UTIL
           transport: REPLACE-WITH-TRANSPORT
           description: "VS SF Control Tower dashboard"

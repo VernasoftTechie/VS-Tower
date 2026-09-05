@@ -33,10 +33,22 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
 > **The Fiori app is now being built** — `/ui/controltower`, freestyle
 > SAPUI5 mirroring Employee-360's own proven `ui/dashboard` app (not the
 > Fiori Elements Overview Page originally recommended in
-> `docs/04_fiori_ui_design.md` — see that doc's update box for why). Not yet
-> deployed or visually verified — see `/ui/README.md` to deploy it and
-> `/ui/README.md`'s troubleshooting table for what to do if something's
-> blank.
+> `docs/04_fiori_ui_design.md` — see that doc's update box for why).
+>
+> **First deploy attempted, 2026-09-05 — two tooling issues found and
+> fixed** (BSP app name over the 15-character limit, a `--archive-path`
+> deploy-script flag this tooling version doesn't want): see `/ui/README.md`
+> troubleshooting table. App renamed `ZTWR_CONTROL_TOWER` → `ZCONTROL_TOWER`
+> everywhere. Not yet re-deployed/visually verified since the fix.
+>
+> **Reframed around a technical-manager use case, 2026-09-05**: the goal is
+> "what needs attention right now, and who do I call" — not a wall of
+> per-domain donuts. Added an **Action Center** (cross-domain, worst-first,
+> with a contact per row) and a **Transport by Owner** rollup (open vs.
+> released count per developer/consultant ID). One small CDS increment
+> went with it — `Owner` (`TBTCO-SDLUNAME`) added to `BackgroundJobHealth`
+> and a new `ZC_TWR_TRANSPORT_BY_OWNER` view — **pending activation**, see
+> `docs/BUILD_ISSUES_LOG.md` §1.
 
 ---
 
@@ -69,19 +81,20 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
 | Interface CDS | `ZI_TWR_EMP_DUP_KEY` (helper — name+DOB match count) | 1 *(refined)* ✅ |
 | Interface CDS | `ZI_TWR_SEC_USER` (anchor, `USR02`) | 2 ✅ |
 | Consumption CDS | `ZC_TWR_SEC_USER` (list), `ZC_TWR_SEC_SUMMARY` (donut by lock status) | 2 ✅ |
-| Interface CDS | `ZI_TWR_BGJOB` (anchor, `TBTCO` — date/time fields are text, see T2) | 3 ✅ |
+| Interface CDS | `ZI_TWR_BGJOB` (anchor, `TBTCO` — date/time fields are text, see T2; `Owner`/`SDLUNAME` added 2026-09-05 🔄 pending) | 3 ✅ |
 | Consumption CDS | `ZC_TWR_BGJOB` (exposed as `BackgroundJobHistory`), `ZC_TWR_BGJOB_SUMMARY` (`BackgroundJobHistorySummary`) — full run history, unchanged | 3 ✅ |
 | Interface CDS | `ZI_TWR_BGJOB_LATEST` (helper — `MAX(JobCount)` per job name), `ZI_TWR_BGJOB_HEALTH` (self-join, pending/error only) | 3 *(refined)* ✅ |
 | Consumption CDS | `ZC_TWR_BGJOB_HEALTH` (`BackgroundJobHealth` — **the primary Background Jobs tile**), `ZC_TWR_BGJOB_HEALTH_SUMMARY` | 3 *(refined)* ✅ |
 | Interface CDS | `ZI_TWR_TRANSPORT` (anchor, `E070`, local system) | 4 ✅ |
 | Consumption CDS | `ZC_TWR_TRANSPORT` (list), `ZC_TWR_TRANSPORT_SUMMARY` (donut by status) | 4 ✅ |
 | Consumption CDS | `ZC_TWR_TRANSPORT_TYPE_SUMMARY` (donut by request type) | 4 *(refined)* ✅ |
+| Consumption CDS | `ZC_TWR_TRANSPORT_BY_OWNER` (`TransportByOwner` — open vs. released count per developer/consultant ID, manager ask) | 4 *(refined)* 🔄 pending |
 | Consumption CDS | `ZC_TWR_HEADCOUNT` (donut by company/personnel area — no new interface view, reuses Stage 1's `ZI_TWR_EMP_BASIC`) | 5 ✅ |
 | Consumption CDS | `ZC_TWR_HEADCOUNT_BY_GROUP` (donut by employee group/subgroup — same reuse) | 5 *(refined)* ✅ |
 | Consumption CDS | `ZC_TWR_PAYROLL_AREA` (donut by payroll area — no new interface view, reuses Stage 1's `ZI_TWR_EMP_BASIC`) | 6 ✅ |
 | Interface CDS | `ZI_TWR_WORKITEM` (anchor, `SWWWIHEAD` — 3 fields only, conservative first cut) | 13 ✅ |
 | Consumption CDS | `ZC_TWR_WORKITEM` (exposed as `WorkItemSet` — renamed post-T4), `ZC_TWR_WORKITEM_SUMMARY` (donut, type × status cross-tab) | 13 ✅ |
-| Service | `ZTWR_UI_SRVD` (exposes all of the above, 16 entities) + `ZTWR_UI_SRVB_O4` (OData V4 – UI, published, shipped in the repo) | 1–6, 13 |
+| Service | `ZTWR_UI_SRVD` (exposes all of the above, 17 entities) + `ZTWR_UI_SRVB_O4` (OData V4 – UI, published, shipped in the repo) | 1–6, 13 |
 
 **Retired:** `ZTWR_CFG_IFACE` (table) + `ZI_TWR_CFG_IFACE` + `ZC_TWR_CFG_IFACE`
 — removed from the repo 2026-09-04, client direction (no custom
@@ -94,21 +107,28 @@ Missing Cost Center, Missing Position (proxy for Invalid Position), Missing
 Bank/IBAN, and now Duplicate Employee. Missing Manager is still deferred —
 see `docs/02_solution_architecture.md` §26.
 
-## ABAP/CDS layer: nothing queued — fully confirmed clean
+## ABAP/CDS layer: one small increment pending, everything else confirmed clean
 
-Every object in `/src` — Stages 1–6, all six refinements, and Stage 13
-(Workflow, including the T4 fix) — is pulled, activated, and confirmed
-clean by the client. There is nothing left to pull on the ABAP side. If any
-"closed for this round" item in `docs/02_solution_architecture.md` §8 gets
-unblocked later (real interface data, an `SE11` field check, a D9 answer on
-Alerts/snapshot), that becomes its own stage at that point — see
-`docs/00_context_and_decisions.md` §7–§8 for exactly what and why.
+Stages 1–6, all six earlier refinements, and Stage 13 (Workflow, including
+the T4 fix) are pulled, activated, and confirmed clean by the client.
+**One new increment (2026-09-05) is pending its first pull**: `Owner` added
+to `BackgroundJobHealth` (`TBTCO-SDLUNAME`) and the new
+`ZC_TWR_TRANSPORT_BY_OWNER` view — both reuse already-confirmed fields/
+patterns (see `docs/BUILD_ISSUES_LOG.md` §1), so risk is low, but neither is
+"confirmed" until reported back. If any "closed for this round" item in
+`docs/02_solution_architecture.md` §8 gets unblocked later (real interface
+data, an `SE11` field check, a D9 answer on Alerts/snapshot), that becomes
+its own stage at that point — see `docs/00_context_and_decisions.md` §7–§8
+for exactly what and why.
 
 ## Current round: the Fiori app
 
-`/ui/controltower` is written but **not yet deployed or visually verified**
-— see `/ui/README.md` to deploy it. That's the only outstanding action in
-this repo right now.
+`/ui/controltower` is written, reframed around a technical-manager use
+case (Action Center + Transport by Owner, see the banner above), and had
+its first deploy attempt (two tooling issues found and fixed). **Not yet
+re-deployed or visually verified since that fix** — see `/ui/README.md` to
+deploy it. That, plus pulling the one pending CDS increment above, are the
+only outstanding actions in this repo right now.
 
 ## Post-pull (not in the repo)
 

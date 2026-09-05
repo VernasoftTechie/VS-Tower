@@ -39,8 +39,19 @@ reasonable follow-up — the CDS layer needs no changes either way.
 
 ## 2. Card map — one row per OVP card
 
+> **Update, 2026-09-05: Action Center added, leads the page.** Reframed
+> around a technical-manager use case — "what needs attention, who do I
+> call" — rather than opening straight into per-domain donuts. One
+> cross-domain table, worst item first (Data Quality/Security/Jobs/
+> Transport/Workflow), each row carrying a **Contact**: the record's own
+> owner where one exists (`BackgroundJobHealth.Owner` = `SDLUNAME`,
+> `TransportRequestSet.Owner` = `AS4USER`), else a fixed team name
+> (Security, Data Quality) or a "not yet mapped" placeholder (Workflow,
+> pending `SWWUSERWI`). See `ui/README.md` "What this covers."
+
 | Card | Type | Entity | Notes |
 |---|---|---|---|
+| **Action Center** | List (cross-domain) | *client-side union of the rows below* | worst-first (Fiori criticality 1/2 only), Contact column per row |
 | Data Quality by Category | Analytical (donut) | `DataQualitySummary` | dimension `Category`, measure `IssueCount` |
 | Recent Data Quality Issues | List | `DataQualityIssue` | sort by `SeverityCriticality` desc |
 | User Lock Status | Analytical (donut) | `SecuritySummary` | dimension `IsLocked`, measure `UserCount` |
@@ -48,9 +59,10 @@ reasonable follow-up — the CDS layer needs no changes either way.
 | **Jobs Needing Attention** | List | `BackgroundJobHealth` | **primary card for this section** — already deduped/filtered server-side, no client filter needed |
 | Job Health Split | Analytical (donut) | `BackgroundJobHealthSummary` | dimension `Status`, measure `JobNameCount` |
 | Job Run History | List | `BackgroundJobHistory` | secondary/drill-down only — don't lead with this, it's the full unfiltered log |
+| Transport by Owner | List (pivoted) | `TransportByOwner` | Owner x RequestStatus rows pivoted client-side into Open/Released/Total per owner — manager ask, "which IDs have TRs stuck open" |
 | Transport by Status | Analytical (donut) | `TransportSummary` | dimension `RequestStatus`, measure `RequestCount` |
 | Transport by Type | Analytical (donut) | `TransportTypeSummary` | dimension `RequestType`, measure `RequestCount` |
-| Recent Transport Requests | List | `TransportRequestSet` | |
+| Open Transport Requests (Queued) | List | `TransportRequestSet` | **filtered to `RequestStatus in ('D','R')` at the OData source** — "don't show moved ones" |
 | Headcount by Area | Analytical (donut) | `HeadcountOverview` | dimensions `CompanyCode`/`PersonnelArea`, measure `EmployeeCount` |
 | Headcount by Employee Group | Analytical (donut) | `HeadcountByGroup` | dimensions `EmployeeGroup`/`EmployeeSubgroup`, measure `EmployeeCount` |
 | Payroll Areas | Analytical (donut) | `PayrollAreaOverview` | dimension `PayrollArea`, measure `EmployeeCount` |
@@ -105,7 +117,7 @@ is still straightforward to add — the CDS side needs no further work for it.
 | Subtitle | SuccessFactors Integration Monitoring |
 | Icon | `sap-icon://home` or a control-tower-style custom icon, client's choice |
 | Semantic object / action | e.g. `ZTwrControlTower-display` |
-| Target | BSP application `ZTWR_CONTROL_TOWER` (`/ui/controltower`), consuming service `ZTWR_UI_SRVB_O4` |
+| Target | BSP application `ZCONTROL_TOWER` (`/ui/controltower`), consuming service `ZTWR_UI_SRVB_O4` |
 
 ## 7. What the Fiori developer does
 
@@ -115,8 +127,8 @@ The app is already written — `/ui/controltower`, mirroring Employee-360's
 1. Fill in 3 values in `ui5-deploy.yaml` (host, client, transport) —
    `/ui/README.md` walks through it.
 2. `npm install && npm run deploy` — builds and uploads as BSP application
-   `ZTWR_CONTROL_TOWER` into package `ZABAP_UTIL`.
-3. Open `https://<host>:<port>/sap/bc/ui5_ui5/sap/ztwr_control_tower/index.html`
+   `ZCONTROL_TOWER` into package `ZABAP_UTIL`.
+3. Open `https://<host>:<port>/sap/bc/ui5_ui5/sap/zcontrol_tower/index.html`
    and report back what actually renders — this is the first real test of
    the app, same as every ABAP stage's first pull.
 4. Once it renders correctly, wire the launchpad tile per §6 (needs Basis).

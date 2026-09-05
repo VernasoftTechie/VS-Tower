@@ -6,7 +6,7 @@
   "scripts": {
     "start": "ui5 serve --open index.html",
     "build": "ui5 build --clean-dest",
-    "deploy": "npm run build && fiori deploy --config ui5-deploy.yaml --archive-path dist --yes",
+    "deploy": "npm run build && fiori deploy --config ui5-deploy.yaml --yes",
     "undeploy": "fiori undeploy --config ui5-deploy.yaml --yes"
   },
   "devDependencies": {

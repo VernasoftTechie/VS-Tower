@@ -29,6 +29,11 @@ define view entity ZC_TWR_BGJOB_HEALTH
 
       StatusCriticality,
 
+      @UI.lineItem:       [{ position: 35 }]
+      @UI.identification: [{ position: 35 }]
+      @EndUserText.label: 'Scheduled By'
+      Owner,
+
       @UI.lineItem:       [{ position: 40 }]
       @UI.identification: [{ position: 40 }]
       StartDate,

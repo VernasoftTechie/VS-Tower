@@ -27,6 +27,7 @@ define view entity ZI_TWR_BGJOB_HEALTH
   key J.JobCount         as JobCount,
       J.Status            as Status,
       J.StatusCriticality as StatusCriticality,
+      J.Owner             as Owner,
       J.StartDate         as StartDate,
       J.StartTime         as StartTime,
       J.EndDate           as EndDate,

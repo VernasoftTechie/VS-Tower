@@ -21,6 +21,15 @@
   opacity: 0.85;
   z-index: 1;
 }
+/* The Action Center leads the page - a thicker, single-hue accent (not the
+   two-tone gradient every other card gets) marks it as the one card that
+   isn't peer to the rest. */
+.ctActionCard::before {
+  height: 4px;
+  background: var(--sapAccentColor6, #0a6ed1);
+  opacity: 1;
+}
+
 .ctViz {
   height: 16rem;
 }

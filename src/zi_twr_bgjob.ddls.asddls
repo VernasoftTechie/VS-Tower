@@ -30,6 +30,13 @@
 // (a normal, already-proven-safe literal cast - not the null-cast that
 // failed above). Formatting (e.g. "2026-09-04") is a later polish item, not
 // needed to get this table working.
+//
+// Owner (2026-09-05): TBTCO-SDLUNAME - the user who scheduled the job.
+// Added for the "who does the team lead contact" requirement - a manager
+// looking at a pending/aborted job needs a name, not just a job name.
+// Selected raw, uncast, same as E070-AS4USER -> ZI_TWR_TRANSPORT.Owner
+// (already confirmed clean) - same field class (a BNAME-style username),
+// same confidence.
 
 define view entity ZI_TWR_BGJOB
   as select from tbtco
@@ -40,6 +47,7 @@ define view entity ZI_TWR_BGJOB
       cast( case when status = 'F' then 3
                   when status = 'A' then 1
                   else 2 end as abap.int4 )                               as StatusCriticality,
+      sdluname                                                           as Owner,
       case when strtdate is initial then cast( '' as abap.char( 8 ) )
            else cast( strtdate as abap.char( 8 ) ) end                    as StartDate,
       case when strttime is initial then cast( '' as abap.char( 6 ) )
