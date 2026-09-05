@@ -52,6 +52,7 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
 | [`docs/02_solution_architecture.md`](docs/02_solution_architecture.md) | Layering, naming, reuse strategy, rulebook deviations, stage roadmap |
 | [`docs/03_stage7_data_collection.md`](docs/03_stage7_data_collection.md) | **On hold** — kept for reference if Stage 7 is picked back up later |
 | [`docs/BUILD_ISSUES_LOG.md`](docs/BUILD_ISSUES_LOG.md) | **Read before touching any ABAP** — pre-flight checklist + every activation error hit + fix |
+| [`docs/04_fiori_ui_design.md`](docs/04_fiori_ui_design.md) | Fiori Elements Overview Page recommendation, card map, launchpad tile — for the Fiori developer |
 
 ## What's in `/src`
 

@@ -187,9 +187,49 @@ Fiori UI / dashboard-design decision — separate round, client's call on
 timing. Nothing further to build in CDS until either that decision lands, or
 one of the "not built" items above gets unblocked.
 
----
+**Update, same day:** client asked to see a visual of the build and greenlit
+starting UI design — see `04_fiori_ui_design.md` and the artifact link there.
+That in turn prompted a direct question about Workflow, answered in §8.
 
-## Change log
+## 8. Workflow Overview — reconsidered
+
+Client asked directly: "how about workflows, can't we handle it to show?"
+Worth separating two things that had been bucketed together as one "Phase 2"
+line item in §7's closure table:
+
+- **The funnel visual** — genuinely a UI-layer concern (no Fiori Elements
+  chart type draws a funnel), correctly deferred regardless of anything else.
+- **The underlying data** — `SWWWIHEAD` (work item header) /
+  `SWWUSERWI` (user assignment). This does **not** need client-specific
+  business data the way Stage 7 or the action-type codes do — it's a
+  standard-table question, same category as everything already built.
+
+So it isn't blocked for the same reason Stage 7 is. But it also isn't as
+safe as `TBTCO`/`E070`/`USR02` were: those are simple, universally-documented
+tables I had strong, specific recall of. `SWWWIHEAD`/`SWWUSERWI` are part of
+the SAP Business Workflow runtime engine — I'm confident the tables and
+`WI_ID`/`WI_TYPE`/`WI_STAT`/`WI_CD`/`WI_CT` exist, less confident of the
+exact field list beyond that, and `SWWUSERWI`'s agent-assignment model
+(user vs. position vs. org unit) is genuinely more complex than a plain
+foreign key. That puts this closer to the `T569V` risk class — attemptable,
+but more likely than not to need a fix-forward round or two, the same as
+T1–T3 did.
+
+**Options, not yet decided:**
+
+1. **Attempt a conservative first cut now** — read `SWWWIHEAD` alone (skip
+   `SWWUSERWI`/"manager inbox" entirely, the more uncertain piece), expose
+   `WI_TYPE`/`WI_STAT` **raw** and group by whatever values actually come
+   back — the same "don't guess the meaning, just expose the code"
+   discipline that worked for `TransportType`/`RequestStatus`. Gives a
+   generic **Workflow Item Overview** (counts by raw type/status, a recent-
+   items list) — not the mock-up's specific "Pending / In Manager Inbox /
+   Escalated / Overdue / Completed Today" semantics, since those require
+   knowing what the status/type codes actually mean and the agent model.
+2. **Hold, same as `T569V`** — a quick SE11 check on both tables first,
+   then build it with the same confidence as everything already shipped.
+
+Decision pending.
 
 | Date | Change |
 |---|---|
@@ -209,3 +249,5 @@ one of the "not built" items above gets unblocked.
 | 2026-09-05 | **Stage 1 refined: Duplicate Employee.** With the self-join pattern now proven twice, the one deferred Stage 1 check that needed it is no longer a blind guess. `ZI_TWR_EMP_DUP_KEY` (helper) + a 5th `ZI_TWR_DQ_ISSUE` UNION branch built and pushed — no consumption-layer changes needed. Missing Manager remains deferred (unrelated HRP1001 blocker). |
 | 2026-09-05 | Client asked to proceed two stages at a time. With the rest of the roadmap blocked on missing data or known-fragile patterns, built two pure extensions of proven ground instead: **Transport Summary by Type** (`ZC_TWR_TRANSPORT_TYPE_SUMMARY`) and **Headcount by Employee Group** (`EmployeeGroup`/`EmployeeSubgroup` added to `ZI_TWR_EMP_BASIC`, `ZC_TWR_HEADCOUNT_BY_GROUP`). Zero new custom DDIC, zero new external information needed. |
 | 2026-09-05 | Client confirmed the last 3 increments (Duplicate Employee, Transport by Type, Headcount by Group) all clean. Client then asked to close out the CDS layer entirely, deferring Fiori UI design to a later round. **§7 (CDS layer closure) added** — full inventory of what's built, and every remaining item bucketed by why it isn't (needs client data / needs SE11 verification / known-fragile / needs a non-CDS object / reframed as UI composition / Phase 2 / CAP track), so nothing reads as an oversight. |
+| 2026-09-05 | Client asked to see the dashboard visually and greenlit starting UI design (a Fiori developer to be involved once instructions are ready). Published an illustrative preview artifact (numbers are examples, not live data) and wrote `docs/04_fiori_ui_design.md`: recommends **Fiori Elements Overview Page**, not freestyle, since every entity built is already an analytical-card or list-card shape and neither Phase-2 visual (funnel, org tree) exists yet; full card map, groupings, KPI-strip design (Alerts reframed as filtered reads of existing summaries, no new backend object), launchpad tile, and BAS steps for the Fiori developer. Client then asked about Workflow specifically — see §8. |
+| 2026-09-05 | **§8 added** — Workflow Overview reconsidered. The funnel *visual* was always Phase 2/UI, correctly deferred; but the underlying *data* (`SWWWIHEAD`/`SWWUSERWI`) was bucketed into "Phase 2" partly for that same reason, not because it strictly needs client data the way Stage 7 does. Confidence in these two tables' exact fields is real but meaningfully lower than `PA0001`/`USR02`/`TBTCO`/`E070` — closer to the `T569V` risk class. Flagged rather than attempted blind; decision pending client confirmation on how to proceed. |
