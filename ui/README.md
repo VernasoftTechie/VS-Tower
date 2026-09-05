@@ -87,6 +87,39 @@ npm start
 ```
 Opens the app in your browser, proxied to the live service.
 
+## Live refresh
+
+The dashboard polls every **5 seconds** (`REFRESH_MS` in
+`Dashboard.controller.js`) — confirmed by the client on 2026-09-05 after a
+feasibility review, in place of the "every 2 seconds" originally floated.
+Each cycle re-runs all 13 reads (`_loadAll`) and the 4 KPI numbers ease to
+their new value rather than snap, so a real change reads as a live tick, not
+a flicker.
+
+- **In-flight guard**: if a cycle is still running when the next tick fires
+  (slow round-trip), that tick is skipped rather than stacked — the interval
+  never queues concurrent polls.
+- **Pause switch**: the header switch next to the last-updated timestamp
+  stops the timer (`onToggleAutoRefresh`) without navigating away — useful
+  if someone wants a still frame, or if load ever needs to be dialed back
+  without a code change.
+- **Load math**: 13 reads × (1000ms / 5000ms) ≈ **2.6 requests/second per
+  open browser tab** against `ZTWR_UI_SRVB_O4` — multiply by however many
+  people leave the tab open. If that ever looks heavy in practice, the fix
+  is changing `REFRESH_MS` (or the default switch state), not the CDS layer.
+
+## Visual style
+
+KPI tiles that currently have something to attend to (data-quality issues,
+locked users, jobs needing attention — each bound to its own KPI value, not
+a single fixed set) get a soft pulse; the header carries a blinking "Live"
+dot while auto-refresh is on; cards get a thin gradient top accent (Horizon
+accent tokens) and lift slightly on hover. Chosen as the "bolder / more
+animated" option the client picked over a plainer "tasteful" pass and over
+full glow/neon/particle theming — deliberately short of the latter, per the
+same 2026-09-05 review. All motion respects `prefers-reduced-motion` — see
+`css/style.css`.
+
 ## What this covers, and what it doesn't yet
 
 All 6 stages/refinements: Data Quality, Security, Background Job Health,

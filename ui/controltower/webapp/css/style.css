@@ -1,9 +1,77 @@
 .ctCard {
   height: 100%;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+}
+.ctCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
+}
+/* Thin gradient accent along the top edge of every card - Horizon accent
+   tokens, not an arbitrary brand gradient, so it stays on-theme. */
+.ctCard::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--sapAccentColor6, #0a6ed1), var(--sapAccentColor3, #925ace));
+  opacity: 0.85;
+  z-index: 1;
 }
 .ctViz {
   height: 16rem;
 }
 .ctPage {
   background-color: var(--sapBackgroundColor);
+}
+
+/* "Live" indicator in the header - a slow, deliberate blink, not a strobe. */
+.ctLiveWrap {
+  display: inline-flex;
+}
+.ctLiveDot {
+  font-size: 0.6rem;
+  animation: ctBlink 1.6s ease-in-out infinite;
+}
+.ctLiveText {
+  font-size: 0.75rem;
+  color: var(--sapContent_LabelColor, var(--sapNeutralColor));
+}
+.ctLastUpdated {
+  font-variant-numeric: tabular-nums;
+}
+
+/* KPI tiles that currently have something to attend to (count > 0) get a
+   soft outward pulse instead of sitting static - bound conditionally per
+   tile in the view (kpi/dq, kpi/locked, kpi/jobsAttn), not decorative. */
+.ctPulseAlert {
+  animation: ctPulseGlow 2.2s ease-in-out infinite;
+}
+
+@keyframes ctBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+@keyframes ctPulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(187, 0, 0, 0); }
+  50% { box-shadow: 0 0 0 7px rgba(187, 0, 0, 0.16); }
+}
+
+/* Respect the OS-level reduced-motion preference - the blink/pulse/hover
+   motion is decoration, never the only carrier of state (color + text still
+   say "Error"/"Critical" without it). */
+@media (prefers-reduced-motion: reduce) {
+  .ctCard,
+  .ctLiveDot,
+  .ctPulseAlert {
+    animation: none !important;
+    transition: none !important;
+  }
+  .ctCard:hover {
+    transform: none;
+  }
 }

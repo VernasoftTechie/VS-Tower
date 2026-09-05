@@ -15,6 +15,14 @@
   <App id="app">
   <Page id="page" class="ctPage" title="{i18n>pageTitle}" showHeader="true">
     <headerContent>
+      <HBox alignItems="Center" visible="{/meta/autoRefresh}" class="ctLiveWrap sapUiTinyMarginEnd">
+        <core:Icon src="sap-icon://record" class="ctLiveDot" color="Positive"/>
+        <Text text="{i18n>live}" class="ctLiveText sapUiTinyMarginBegin"/>
+      </HBox>
+      <Text text="{i18n>lastUpdated}" class="sapUiTinyMarginEnd"/>
+      <Text text="{/meta/lastUpdatedText}" class="ctLastUpdated sapUiSmallMarginEnd"/>
+      <Switch state="{/meta/autoRefresh}" customTextOn="{i18n>autoOn}" customTextOff="{i18n>autoOff}"
+              change=".onToggleAutoRefresh" tooltip="{i18n>autoRefreshTooltip}" class="sapUiTinyMarginEnd"/>
       <Button icon="sap-icon://refresh" tooltip="{i18n>refresh}" press=".onRefresh"/>
     </headerContent>
 
@@ -30,17 +38,17 @@
 
       <!-- KPI strip -->
       <l:Grid defaultSpan="XL3 L3 M6 S12" hSpacing="1" vSpacing="1" class="sapUiSmallMarginBottom">
-        <f:Card class="ctCard">
+        <f:Card class="{= 'ctCard ' + (${/kpi/dq} > 0 ? 'ctPulseAlert' : '') }">
           <f:header>
             <card:NumericHeader title="{i18n>kpiDq}" number="{/kpi/dq}" state="Error"/>
           </f:header>
         </f:Card>
-        <f:Card class="ctCard">
+        <f:Card class="{= 'ctCard ' + (${/kpi/locked} > 0 ? 'ctPulseAlert' : '') }">
           <f:header>
             <card:NumericHeader title="{i18n>kpiLocked}" number="{/kpi/locked}" state="Critical"/>
           </f:header>
         </f:Card>
-        <f:Card class="ctCard">
+        <f:Card class="{= 'ctCard ' + (${/kpi/jobsAttn} > 0 ? 'ctPulseAlert' : '') }">
           <f:header>
             <card:NumericHeader title="{i18n>kpiJobsAttn}" number="{/kpi/jobsAttn}" state="Critical"/>
           </f:header>
