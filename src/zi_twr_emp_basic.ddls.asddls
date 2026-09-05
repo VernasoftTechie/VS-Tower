@@ -17,6 +17,10 @@
 // than find out at runtime. This view already feeds Stage 1 (ZI_TWR_DQ_ISSUE)
 // and Stage 5 (ZC_TWR_HEADCOUNT); adding a field is additive/backward
 // compatible, doesn't change either of those.
+//
+// EmployeeGroup (PERSG) / EmployeeSubgroup (PERSK) added for the Headcount
+// by Employee Group breakdown - same additive/backward-compatible pattern,
+// cast defensively per the same rule.
 
 define view entity ZI_TWR_EMP_BASIC
   as select from pa0001 as O
@@ -28,6 +32,8 @@ define view entity ZI_TWR_EMP_BASIC
       O.bukrs                       as CompanyCode,
       O.werks                       as PersonnelArea,
       cast( O.abkrs as abap.char( 2 ) ) as PayrollArea,
+      cast( O.persg as abap.char( 1 ) ) as EmployeeGroup,
+      cast( O.persk as abap.char( 2 ) ) as EmployeeSubgroup,
       O.kostl                       as CostCenter,
       O.plans                       as PositionId,
       P.nachn                       as LastName,

@@ -22,11 +22,12 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
 > (T1/T2/T3 fixed along the way, see `docs/BUILD_ISSUES_LOG.md`). Stage 6's
 > original design (interface catalog table) was retired on client direction
 > (standard tables only, no customization — D9) and replaced with Payroll
-> Area Overview. **Stage 3's refinement (`BackgroundJobHealth`) is confirmed
-> clean** — one row per job name, latest run only, pending/error only.
-> **Stage 1 just got the same treatment — Duplicate Employee added**, now
-> that the "aggregate + self-join" pattern is proven twice over. Pushed,
-> pull pending. **Stage 7 (Integration Monitoring) is on hold**, not
+> Area Overview. Stage 3's refinement (`BackgroundJobHealth`) is confirmed
+> clean. **Three more increments pushed, pull pending:** Duplicate Employee
+> (Stage 1 refinement), Transport Summary by Type (Stage 4 refinement), and
+> Headcount by Employee Group (Stage 5 refinement) — all pure extensions of
+> already-proven ground, zero new custom DDIC, zero new external information
+> needed. **Stage 7 (Integration Monitoring) is on hold**, not
 > blocked-and-waiting — see `docs/03_stage7_data_collection.md`. Read
 > `docs/BUILD_ISSUES_LOG.md` §0 before touching any CDS in this repo — every
 > activation error goes there before the next stage is written.
@@ -54,7 +55,7 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
 
 | Area | Objects | Stage |
 |---|---|---|
-| Interface CDS | `ZI_TWR_EMP_BASIC` (anchor — includes `PayrollArea`), `ZI_TWR_EMP_CONTACT`, `ZI_TWR_EMP_BANK`, `ZI_TWR_DQ_ISSUE` (5-branch check union) | 1 ✅ |
+| Interface CDS | `ZI_TWR_EMP_BASIC` (anchor — includes `PayrollArea`, `EmployeeGroup`, `EmployeeSubgroup`), `ZI_TWR_EMP_CONTACT`, `ZI_TWR_EMP_BANK`, `ZI_TWR_DQ_ISSUE` (5-branch check union) | 1 ✅ |
 | Consumption CDS | `ZC_TWR_DQ_ISSUE` (list), `ZC_TWR_DQ_SUMMARY` (donut by category) | 1 ✅ |
 | Interface CDS | `ZI_TWR_EMP_DUP_KEY` (helper — name+DOB match count) | 1 *(refined)* 🔄 |
 | Interface CDS | `ZI_TWR_SEC_USER` (anchor, `USR02`) | 2 ✅ |
@@ -65,7 +66,9 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
 | Consumption CDS | `ZC_TWR_BGJOB_HEALTH` (`BackgroundJobHealth` — **the primary Background Jobs tile**), `ZC_TWR_BGJOB_HEALTH_SUMMARY` | 3 *(refined)* ✅ |
 | Interface CDS | `ZI_TWR_TRANSPORT` (anchor, `E070`, local system) | 4 ✅ |
 | Consumption CDS | `ZC_TWR_TRANSPORT` (list), `ZC_TWR_TRANSPORT_SUMMARY` (donut by status) | 4 ✅ |
+| Consumption CDS | `ZC_TWR_TRANSPORT_TYPE_SUMMARY` (donut by request type) | 4 *(refined)* 🔄 |
 | Consumption CDS | `ZC_TWR_HEADCOUNT` (donut by company/personnel area — no new interface view, reuses Stage 1's `ZI_TWR_EMP_BASIC`) | 5 ✅ |
+| Consumption CDS | `ZC_TWR_HEADCOUNT_BY_GROUP` (donut by employee group/subgroup — same reuse) | 5 *(refined)* 🔄 |
 | Consumption CDS | `ZC_TWR_PAYROLL_AREA` (donut by payroll area — no new interface view, reuses Stage 1's `ZI_TWR_EMP_BASIC`) | 6 ✅ |
 | Service | `ZTWR_UI_SRVD` (exposes all of the above) + `ZTWR_UI_SRVB_O4` (OData V4 – UI, published, shipped in the repo) | 1–6 |
 
@@ -80,22 +83,26 @@ Missing Cost Center, Missing Position (proxy for Invalid Position), Missing
 Bank/IBAN, and now Duplicate Employee. Missing Manager is still deferred —
 see `docs/02_solution_architecture.md` §26.
 
-## Pull & activate (Duplicate Employee)
+## Pull & activate (Duplicate Employee, Transport by Type, Headcount by Group)
 
-`VS-Tower` is already linked to `ZABAP_UTIL`.
+`VS-Tower` is already linked to `ZABAP_UTIL`. One pull covers all three.
 
-1. Pull the repo — brings in `ZI_TWR_EMP_DUP_KEY` (helper) and the extended
-   `ZI_TWR_DQ_ISSUE` (now 5 UNION branches). No consumption-view or service
-   changes needed — `ZC_TWR_DQ_ISSUE`/`ZC_TWR_DQ_SUMMARY` pick up the new
-   check automatically.
+1. Pull the repo — brings in `ZI_TWR_EMP_DUP_KEY` (helper), the extended
+   `ZI_TWR_DQ_ISSUE` (now 5 UNION branches), the extended `ZI_TWR_EMP_BASIC`
+   (2 new fields — `EmployeeGroup`, `EmployeeSubgroup`),
+   `ZC_TWR_TRANSPORT_TYPE_SUMMARY`, `ZC_TWR_HEADCOUNT_BY_GROUP`, and the
+   extended `ZTWR_UI_SRVD`.
 2. Package → **Activate All Inactive ABAP Development Objects** (run twice if
    the first pass leaves cross-references inactive).
 3. Preview `DataQualityIssue` — should now include rows with
    `CheckID = DUPLICATE_EMPLOYEE`, `Category = MASTER_DATA`. Total row count
    should be at or above the previous 40,529 (this only adds rows).
 4. Preview `DataQualitySummary` — should show a new `MASTER_DATA` slice.
-5. Report back clean/error, and roughly how many duplicate-employee rows
-   appear.
+5. Preview `TransportTypeSummary` and `HeadcountByGroup`.
+6. Re-check `HeadcountOverview` and `PayrollAreaOverview` still look right —
+   `ZI_TWR_EMP_BASIC` changed, and both read it.
+7. Report back clean/error for all of the above, and roughly how many
+   duplicate-employee rows appear.
 
 ## Post-pull (not in the repo)
 
@@ -107,5 +114,6 @@ see `docs/02_solution_architecture.md` §26.
 
 See `docs/02_solution_architecture.md` §8 for the current plan, including the
 Stage 6 retirement/replacement, the Stage 3 refinement (§24), the Stage 1
-refinement (§26), and why Stage 7 is on hold. Each stage is one abapGit pull,
-deployed and verified before the next stage starts.
+refinement (§26), the Stage 4/5 refinements (§28), and why Stage 7 is on
+hold. Each stage is one abapGit pull, deployed and verified before the next
+stage starts.

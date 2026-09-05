@@ -134,6 +134,16 @@ to the consumption layer — it picks up the new check automatically. Missing
 Manager remains deferred (different, unrelated blocker — HRP1001 relationship
 ID unconfirmed).
 
+**Two more refinements: Transport by Type, Headcount by Group — pushed, pull
+pending.** With the rest of the roadmap genuinely blocked (real interface
+data, unverified `T569V` fields, a D9 answer on Alerts, or known-fragile
+patterns like org hierarchy), picked pure extensions of already-proven ground
+instead: `ZC_TWR_TRANSPORT_TYPE_SUMMARY` (donut by `RequestType`, already on
+`ZI_TWR_TRANSPORT`) and `ZC_TWR_HEADCOUNT_BY_GROUP` (`EmployeeGroup`/
+`EmployeeSubgroup` added to `ZI_TWR_EMP_BASIC` — both fields were already in
+the verified-field list, inherited from Employee-360). Zero new custom DDIC,
+zero new risk, zero new external information needed.
+
 ---
 
 ## Change log
@@ -154,3 +164,4 @@ ID unconfirmed).
 | 2026-09-04 | **D9 added; interface catalog retired.** Client direction: standard tables only, no customization for now. `ZTWR_CFG_IFACE` + its CDS layer removed from the repo; Stage 7 (Integration Monitoring) moved from "blocked" to **on hold**, not chased with a lighter workaround. `03_stage7_data_collection.md` kept, marked on hold. Replaced Stage 6 with **Payroll Area Overview** — `PayrollArea` (`ABKRS`) added to `ZI_TWR_EMP_BASIC`, new `ZC_TWR_PAYROLL_AREA` aggregation, zero new custom DDIC. Flagged an open question: does D9 also affect D5's snapshot table / a future alert store — not asked yet, not blocking today. |
 | 2026-09-05 | **Stage 3 refinement confirmed clean** — `BackgroundJobHealth` self-join activated with zero errors, client verified end-to-end. This is the second proven "aggregate helper + self-join" instance in this repo. |
 | 2026-09-05 | **Stage 1 refined: Duplicate Employee.** With the self-join pattern now proven twice, the one deferred Stage 1 check that needed it is no longer a blind guess. `ZI_TWR_EMP_DUP_KEY` (helper) + a 5th `ZI_TWR_DQ_ISSUE` UNION branch built and pushed — no consumption-layer changes needed. Missing Manager remains deferred (unrelated HRP1001 blocker). |
+| 2026-09-05 | Client asked to proceed two stages at a time. With the rest of the roadmap blocked on missing data or known-fragile patterns, built two pure extensions of proven ground instead: **Transport Summary by Type** (`ZC_TWR_TRANSPORT_TYPE_SUMMARY`) and **Headcount by Employee Group** (`EmployeeGroup`/`EmployeeSubgroup` added to `ZI_TWR_EMP_BASIC`, `ZC_TWR_HEADCOUNT_BY_GROUP`). Zero new custom DDIC, zero new external information needed. |

@@ -10,6 +10,8 @@ define service ZTWR_UI_SRVD {
   expose ZC_TWR_BGJOB_SUMMARY       as BackgroundJobHistorySummary;
   expose ZC_TWR_TRANSPORT           as TransportRequestSet;
   expose ZC_TWR_TRANSPORT_SUMMARY   as TransportSummary;
+  expose ZC_TWR_TRANSPORT_TYPE_SUMMARY as TransportTypeSummary;
   expose ZC_TWR_HEADCOUNT           as HeadcountOverview;
+  expose ZC_TWR_HEADCOUNT_BY_GROUP  as HeadcountByGroup;
   expose ZC_TWR_PAYROLL_AREA        as PayrollAreaOverview;
 }

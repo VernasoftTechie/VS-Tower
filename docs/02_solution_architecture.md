@@ -149,12 +149,14 @@ Employee-360). Maps onto the Phase 1 / Phase 2 / CAP split in
 | **5** | ✅ **Done** | **Reordered** — Headcount Overview by Company Code × Personnel Area (was: Integration Monitoring) | §16 (M, partial) | None |
 | ~~6~~ | ❌ **Retired 2026-09-04 (D9)** | ~~Foundation, narrowed — interface catalog~~ — client direction: no custom config/catalog tables. Removed from the repo. | — | — |
 | **6** *(replaced)* | ✅ **Done** — T3 fixed (labels) before the retirement, now moot | **Payroll Area Overview** — `PayrollArea` added to `ZI_TWR_EMP_BASIC`, aggregated. Zero new custom DDIC. | §12 (I, partial) | None |
+| **4** *(refined)* | 🔄 Pushed, pull pending | **Transport Summary by Type** — donut by `RequestType`. Zero new custom DDIC. See §28. | §20 (Q) | None |
+| **5** *(refined)* | 🔄 Pushed, pull pending | **Headcount by Employee Group** — `EmployeeGroup`/`EmployeeSubgroup` added to `ZI_TWR_EMP_BASIC`, aggregated. Zero new custom DDIC. See §28. | §16 (M, partial) | None |
 | 7 | **On hold** (not "blocked") — see the box below | Integration Monitoring + Inbound Message Monitor | §6 (C), §7 (D) | would have needed a catalog — ruled out by D9 |
 | 8 | Not started | OData / Gateway Monitor | §8 (E) | None |
 | 9 | Not started | Replication Summary & Error Analysis | §9 (F) | None |
 | 10 | Not started | Remaining KPI tiles, org tree/region donut, New Joiners | §5 (B), §16 (M), §17 (N) | None |
 | 11 | Not started | Payroll run status/control record (needs `T569V` field verification — not yet done, see §20) | §12 (I) | None |
-| 12 | Not started | Alerts list (display-only) + duplicate-employee / extended DQ checks | §15 (L), §10 (G) | Open question — does D9 rule this out too? Not asked yet. |
+| 12 | Not started | Alerts list (display-only) + extended DQ checks (Missing Manager) | §15 (L), §10 (G) | Open question — does D9 rule this out too? Not asked yet. |
 | — | Not started | Freestyle dashboard shell assembling everything built so far; Fiori Elements drill-downs per entity | §21 (R) | — |
 | Phase 2 | Not started | Trends (needs a snapshot history mechanism — see the D9 open question in `00_context_and_decisions.md` §3), Workflow + funnel, remote Transport Monitor (TMS RFC), cert/OAuth/RFC alerts, Performance panel | `01_feasibility_map.md` §25 | per section |
 | CAP track | Not started | CPI MPL, SF Recruiting/Performance, ECP payroll, SF workflow | `01_feasibility_map.md` §22 | separate repo |
@@ -520,3 +522,37 @@ ID unconfirmed on this client), not a technique problem.
 4. Preview `DataQualitySummary` — should show a new `MASTER_DATA` slice.
 5. Report back clean/error, and roughly how many duplicate-employee rows
    appear.
+
+## 28. Two more refinements — Transport by Type, Headcount by Group
+
+With the remaining unbuilt stages (7 on hold, 8/9 needing it, 11 needing
+unverified `T569V` fields, 12 needing a D9 answer) genuinely blocked on
+either missing client data or known-fragile patterns Employee-360's own log
+already warns about (org hierarchy, single-row aggregates), these two are
+picked instead: pure extensions of already-proven ground, zero new external
+information needed, zero new risk.
+
+**Transport Summary by Type** — `ZC_TWR_TRANSPORT_TYPE_SUMMARY`, grouped by
+`RequestType` (workbench vs customizing vs other). No new interface view, no
+new table — `RequestType` was already on `ZI_TWR_TRANSPORT` since Stage 4.
+
+**Headcount by Employee Group** — `ZC_TWR_HEADCOUNT_BY_GROUP`, grouped by
+`EmployeeGroup` × `EmployeeSubgroup` (regular / contract / intern etc. — a
+common HR-ops lens the Company × Personnel Area view doesn't cover). Adds
+`EmployeeGroup` (`PERSG`) and `EmployeeSubgroup` (`PERSK`) to `ZI_TWR_EMP_BASIC`
+— additive, cast defensively per rule #20, doesn't touch Stage 1's DQ checks
+or Stage 5's existing `ZC_TWR_HEADCOUNT`.
+
+Both are the exact same `GROUP BY` + `COUNT(*)` shape proven seven times over
+now. `ZTWR_UI_SRVD` extended: `TransportTypeSummary`, `HeadcountByGroup`.
+
+## 29. Pull & activate (Transport by Type, Headcount by Group)
+
+1. Pull — brings in the extended `ZI_TWR_EMP_BASIC` (2 new fields),
+   `ZC_TWR_TRANSPORT_TYPE_SUMMARY`, `ZC_TWR_HEADCOUNT_BY_GROUP`, and the
+   extended `ZTWR_UI_SRVD`.
+2. **Activate All Inactive** (twice if needed).
+3. Preview `TransportTypeSummary` and `HeadcountByGroup`.
+4. Re-check `DataQualityIssue`/`HeadcountOverview`/`PayrollAreaOverview` are
+   still fine — `ZI_TWR_EMP_BASIC` changed, and all three read it.
+5. Report back clean/error for all of the above.
