@@ -123,7 +123,7 @@ For the OVP card map:
 | Card | Type | Entity | Notes |
 |---|---|---|---|
 | Work Items by Type × Status | Analytical (donut) | `WorkItemSummary` | dimensions `WorkItemType`/`Status` (raw codes — see below), measure `ItemCount` |
-| Recent Work Items | List | `WorkItem` | no criticality yet — status-code meanings not confirmed |
+| Recent Work Items | List | `WorkItemSet` | no criticality yet — status-code meanings not confirmed |
 
 **Not the funnel from the original mock-up.** `WorkItemType`/`Status` are
 exposed as **raw codes**, not mapped to "Pending / In Manager Inbox /

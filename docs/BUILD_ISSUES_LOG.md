@@ -109,6 +109,16 @@ before the first activation, not after.
     of a custom-table interface view gets its own explicit
     `@EndUserText.label`** — never rely on an inherited data-element label,
     known-good elsewhere or not.
+22. **OData V4 names an exposed entity's TYPE as `<EntitySet>Type`** — if any
+    property is named exactly that, the runtime fails hard: "Property
+    '&lt;X&gt;' has the same EDM name as entity type '&lt;X&gt;'" (T4,
+    `WorkItemSet`/`WorkItemType`; Employee-360's own A27 hit the identical
+    pattern with `Education`/`EducationType`). This was already known — flag
+    every new `expose … as <Name>;` line against every property name in that
+    same consumption view **before** the first pull, not after. Fix: rename
+    the **exposed set**, not the property (`TransportRequestSet`,
+    `WorkItemSet` — append `Set`/`List`/similar whenever the natural set name
+    collides with a property already on the view).
 
 ### §1 — Field names verified on this system (safe to reuse)
 
@@ -137,6 +147,7 @@ in this table is unverified on this system — check SE11 before using it.
 | T1 | 🔴 **Fiori preview** (`SecurityUser`/`SecuritySummary`): blank screen — "Application could not be started due to technical issues. Do not use conversion ext USTYP here." | `USR02-USTYP`'s data element carries a conversion exit. Same failure class as Employee-360's A24 (`PDATE` on dates), but on a plain code field — the OData V4 / Fiori runtime can't render **any** field with a conversion exit, not just dates. | `cast( ustyp as abap.char( 1 ) ) as UserType` in `ZI_TWR_SEC_USER` — strips the data element, same technique as the date cast. Fixed once, in the interface view, so both consumption views (`ZC_TWR_SEC_USER`, `ZC_TWR_SEC_SUMMARY`) inherit the fix. | 09a7d7b |
 | T2 | 🔴 **Fiori preview** (`BackgroundJob`): error dialog — "Parameter has invalid value: Parameter IV_VALUE has invalid value.", "Error occurred while processing property 'StartDate' of entity with index 1", "Property 'StartDate' has invalid value ''" | `TBTCO-STRTDATE` is genuinely blank (`00000000`) for a scheduled-but-not-yet-run job step — normal, common data. Exposed as `Edm.Date` (`abap.dats`), the runtime can't parse the resulting empty string for that row. **Not** specific to `@UI.selectionField` — removing it (attempt 2) did not fix it, proving the break is about the *type*, not filterability. | **Attempt 1 (wrong):** map initial → `cast( null as abap.dats )`. Does **not** activate — 🔴 "Unexpected keyword NULL"; CDS view entities don't accept a bare `NULL` inside `cast()`. **Attempt 2 (wrong):** drop `@UI.selectionField` from `StartDate`, keep `abap.dats`. Activates, but the **same runtime error persists** — disproves the value-help theory. **Actual fix:** `ZI_TWR_BGJOB` exposes `StartDate`/`StartTime`/`EndDate`/`EndTime` as plain text (`abap.char(8)`/`abap.char(6)`) instead of `abap.dats`/`abap.tims`, blank-safe via an empty-literal cast — `Edm.String` has no date-validity constraint, so a blank value is just an empty string, not an error. | pending |
 | T3 | 🟡 **Fiori preview** (`InterfaceCatalog`): filter bar and column headers show "Char20", "Char", "Branching name", "Checkbox" instead of business labels | `ZI_TWR_CFG_IFACE` selected the table's fields with no `@EndUserText.label` override, so Fiori fell back to each field's underlying data-element label. `IFACE_OWNER`'s rollname `BNAME` — reused from `USR02-BNAME`, proven safe as a raw **select source** in Stage 2 — resolved to **"Branching name"** as a rollname on this new table, not the expected username label. (0 rows itself is correct — the table ships empty — that part was never a bug.) | `ztwr_cfg_iface.tabl.xml`: `IFACE_OWNER` rollname changed `BNAME` → `CHAR40` (it holds free text like "SAP Basis Team", not a real username anyway). `ZI_TWR_CFG_IFACE`: every element now carries its own explicit `@EndUserText.label`, which wins regardless of the underlying data element. | pending |
+| T4 | 🔴 **Fiori preview** (`WorkItemSet`/`WorkItemSummary`): blank screen — "Application could not be started due to technical issues. Property 'WorkItemType' has the same EDM name as entity type 'WorkItemType'." | Exact repeat of Employee-360's own A27: OData V4 names the entity **type** for an exposed set `<Name>` as `<Name>Type`. Set `WorkItem` → type `WorkItemType` → collides with the property literally named `WorkItemType` on the same view. Already a known rule (§0.22 existed in spirit before this) — just not checked against this specific new entity before the first pull. | `ztwr_ui_srvd.srvd.srvdsrv`: renamed the exposed set `WorkItem` → `WorkItemSet` (same fix already used for `TransportRequestSet`). No CDS change needed — property names stay as they are. | pending |
 
 **Stage 2 result: confirmed after T1.** `SecurityUser` preview renders —
 4,860 users, `UserType` showing `A` (cast fixed it), `IsLocked` criticality

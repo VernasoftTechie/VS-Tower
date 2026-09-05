@@ -578,7 +578,7 @@ fields, no dates, no `SWWUSERWI` at all in round one. Full reasoning in
 | `ZI_TWR_WORKITEM` | Interface CDS | Anchor over `SWWWIHEAD` — `WorkItemId`, `WorkItemType`, `Status` only. Type/status cast defensively (rule #20) and exposed **raw**, not filtered to guessed values — same discipline as `TransportType`/`RequestStatus`. |
 | `ZC_TWR_WORKITEM` | Consumption CDS | List view. No criticality (status-code meanings not confirmed yet). |
 | `ZC_TWR_WORKITEM_SUMMARY` | Consumption CDS | Cross-tab by `WorkItemType` × `Status`, donut on `Status`. |
-| `ZTWR_UI_SRVD` (extended) | Service Definition | `WorkItem`, `WorkItemSummary` |
+| `ZTWR_UI_SRVD` (extended) | Service Definition | `WorkItemSet`, `WorkItemSummary` |
 
 **Not included, even as a stretch:** `WI_CD`/`WI_CT` (created date/time —
 field names not independently confirmed, one more way this could fail to
@@ -604,7 +604,7 @@ already took.
    `SWWWIHEAD` in this repo; treat any error as high-priority to report
    verbatim, and don't guess a fix blind — check the exact field name in
    SE11 first if `WI_ID`/`WI_TYPE`/`WI_STAT` themselves are what's wrong.
-3. Preview `WorkItem` and `WorkItemSummary` — note what real `WorkItemType`/
-   `Status` values come back; that tells us how to refine this into the
-   mock-up's specific semantics next round.
+3. Preview `WorkItemSet` and `WorkItemSummary` — note what real
+   `WorkItemType`/`Status` values come back; that tells us how to refine
+   this into the mock-up's specific semantics next round.
 4. Report back clean/error, and the actual type/status codes you see.

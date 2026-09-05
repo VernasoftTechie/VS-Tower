@@ -14,6 +14,6 @@ define service ZTWR_UI_SRVD {
   expose ZC_TWR_HEADCOUNT           as HeadcountOverview;
   expose ZC_TWR_HEADCOUNT_BY_GROUP  as HeadcountByGroup;
   expose ZC_TWR_PAYROLL_AREA        as PayrollAreaOverview;
-  expose ZC_TWR_WORKITEM            as WorkItem;
+  expose ZC_TWR_WORKITEM            as WorkItemSet;
   expose ZC_TWR_WORKITEM_SUMMARY    as WorkItemSummary;
 }

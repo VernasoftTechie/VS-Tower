@@ -101,7 +101,7 @@ currently queued.
 2. **Activate All Inactive** (twice if needed) — first read of `SWWWIHEAD`
    in this repo. If `WI_ID`/`WI_TYPE`/`WI_STAT` themselves are wrong, check
    the exact field name in SE11 before guessing a fix.
-3. Preview `WorkItem` and `WorkItemSummary` — note the real
+3. Preview `WorkItemSet` and `WorkItemSummary` — note the real
    `WorkItemType`/`Status` values that come back; that's what lets the next
    round refine this into the mock-up's actual "Pending/Escalated/Overdue"
    semantics.

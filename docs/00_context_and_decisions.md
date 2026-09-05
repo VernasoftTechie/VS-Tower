@@ -233,7 +233,7 @@ specific "Pending / In Manager Inbox / Escalated / Overdue / Completed
 Today" semantics, which need the status/type codes' real meaning and the
 agent model, neither confirmed yet. `ZC_TWR_WORKITEM` /
 `ZC_TWR_WORKITEM_SUMMARY` (cross-tab by type × status) built; `ZTWR_UI_SRVD`
-extended: `WorkItem`, `WorkItemSummary`. Pushed, pull pending.
+extended: `WorkItemSet`, `WorkItemSummary`. Pushed, pull pending.
 
 Decision pending.
 
