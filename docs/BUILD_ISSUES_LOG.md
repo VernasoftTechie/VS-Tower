@@ -145,6 +145,16 @@ sample rows with **no runtime error**, so unlike `USTYP` it does **not**
 carry a blocking conversion exit — real empty data, not a T1-style symptom.
 No further action on `CLASS`.
 
+**Duplicate Employee, Transport by Type, Headcount by Group result: clean,
+all three.** Confirmed by the client. `ZI_TWR_EMP_DUP_KEY`'s self-join
+(5th `ZI_TWR_DQ_ISSUE` branch), `ZC_TWR_TRANSPORT_TYPE_SUMMARY`, and
+`ZC_TWR_HEADCOUNT_BY_GROUP` (on the extended `ZI_TWR_EMP_BASIC`) all
+activated with zero errors. `PERSG`/`PERSK` confirmed to render fine with no
+conversion-exit surprise (unlike `USTYP`/`TRSTATUS`'s siblings, which needed
+casts) — added to the confirmed column of the field table below. CDS layer
+closed for this round per client direction — see
+`00_context_and_decisions.md` §7 for the full "what's not built and why."
+
 **Stage 3 refinement result: clean.** `BackgroundJobHealth` (self-join +
 `Status <> 'F'` filter) and `BackgroundJobHistory` (renamed, unchanged CDS)
 both pulled, activated, and verified clean — no activation errors on the

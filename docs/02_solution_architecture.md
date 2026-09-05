@@ -141,7 +141,7 @@ Employee-360). Maps onto the Phase 1 / Phase 2 / CAP split in
 | Stage | Status | Delivers | Feasibility map section | New custom DDIC? |
 |---|---|---|---|---|
 | **1** | ✅ **Done** — pulled, activated clean, preview verified with real data (40,529 issues) | Data Quality Overview — Missing Email / Cost Center / Position / Bank | §10 (G) | None |
-| **1** *(refined)* | 🔄 Pushed, pull pending | **Duplicate Employee** added (5th check) — aggregate helper + self-join, proven pattern from Stage 3. See §26. Missing Manager still deferred (unrelated blocker). | §10 (G) | None |
+| **1** *(refined)* | ✅ **Done** — confirmed clean | **Duplicate Employee** added (5th check) — aggregate helper + self-join, proven pattern from Stage 3. See §26. Missing Manager still deferred (unrelated blocker). | §10 (G) | None |
 | **2** | ✅ **Done** — activation hit T1 (`USTYP` conversion exit), fixed, preview verified (4,860 users) | Security Monitor — locked users, password age, technical users | §19 (P) | None |
 | **3** | ✅ **Done** — T2 fixed (3rd attempt: blank date exposed as text, not `Edm.Date`) | Background Jobs Monitor | §14 (K) | None |
 | **3** *(refined)* | ✅ **Done** — self-join activated clean, confirmed by client | **`BackgroundJobHealth`** — one row per job name (latest run only), pending/error only. See §24. `BackgroundJobHistory` (renamed from the old `BackgroundJob`) stays as the drill-down/full-history entity, unchanged. | §14 (K) | None |
@@ -149,17 +149,22 @@ Employee-360). Maps onto the Phase 1 / Phase 2 / CAP split in
 | **5** | ✅ **Done** | **Reordered** — Headcount Overview by Company Code × Personnel Area (was: Integration Monitoring) | §16 (M, partial) | None |
 | ~~6~~ | ❌ **Retired 2026-09-04 (D9)** | ~~Foundation, narrowed — interface catalog~~ — client direction: no custom config/catalog tables. Removed from the repo. | — | — |
 | **6** *(replaced)* | ✅ **Done** — T3 fixed (labels) before the retirement, now moot | **Payroll Area Overview** — `PayrollArea` added to `ZI_TWR_EMP_BASIC`, aggregated. Zero new custom DDIC. | §12 (I, partial) | None |
-| **4** *(refined)* | 🔄 Pushed, pull pending | **Transport Summary by Type** — donut by `RequestType`. Zero new custom DDIC. See §28. | §20 (Q) | None |
-| **5** *(refined)* | 🔄 Pushed, pull pending | **Headcount by Employee Group** — `EmployeeGroup`/`EmployeeSubgroup` added to `ZI_TWR_EMP_BASIC`, aggregated. Zero new custom DDIC. See §28. | §16 (M, partial) | None |
-| 7 | **On hold** (not "blocked") — see the box below | Integration Monitoring + Inbound Message Monitor | §6 (C), §7 (D) | would have needed a catalog — ruled out by D9 |
-| 8 | Not started | OData / Gateway Monitor | §8 (E) | None |
-| 9 | Not started | Replication Summary & Error Analysis | §9 (F) | None |
-| 10 | Not started | Remaining KPI tiles, org tree/region donut, New Joiners | §5 (B), §16 (M), §17 (N) | None |
-| 11 | Not started | Payroll run status/control record (needs `T569V` field verification — not yet done, see §20) | §12 (I) | None |
-| 12 | Not started | Alerts list (display-only) + extended DQ checks (Missing Manager) | §15 (L), §10 (G) | Open question — does D9 rule this out too? Not asked yet. |
+| **4** *(refined)* | ✅ **Done** — confirmed clean | **Transport Summary by Type** — donut by `RequestType`. Zero new custom DDIC. See §28. | §20 (Q) | None |
+| **5** *(refined)* | ✅ **Done** — confirmed clean | **Headcount by Employee Group** — `EmployeeGroup`/`EmployeeSubgroup` added to `ZI_TWR_EMP_BASIC`, aggregated. Zero new custom DDIC. See §28. | §16 (M, partial) | None |
+| 7 | ⏸ **Closed for this round** — needs client data (`03_stage7_data_collection.md`) | Integration Monitoring + Inbound Message Monitor | §6 (C), §7 (D) | would have needed a catalog — ruled out by D9 |
+| 8 | ⏸ **Closed for this round** — needs `SE11` field verification | OData / Gateway Monitor | §8 (E) | None |
+| 9 | ⏸ **Closed for this round** — depends on Stage 7 | Replication Summary & Error Analysis | §9 (F) | None |
+| 10 | ⏸ **Closed for this round** — action-type codes (New Joiners) / fragile pattern (org tree) / region mapping unconfirmed | Remaining KPI tiles, org tree/region donut, New Joiners | §5 (B), §16 (M), §17 (N) | None |
+| 11 | ⏸ **Closed for this round** — needs `T569V` field verification | Payroll run status/control record | §12 (I) | None |
+| 12 | ⏸ **Reframed** — no new CDS object; UI-layer composition over existing summaries | Alerts list (display-only) | §15 (L) | None needed |
 | — | Not started | Freestyle dashboard shell assembling everything built so far; Fiori Elements drill-downs per entity | §21 (R) | — |
 | Phase 2 | Not started | Trends (needs a snapshot history mechanism — see the D9 open question in `00_context_and_decisions.md` §3), Workflow + funnel, remote Transport Monitor (TMS RFC), cert/OAuth/RFC alerts, Performance panel | `01_feasibility_map.md` §25 | per section |
 | CAP track | Not started | CPI MPL, SF Recruiting/Performance, ECP payroll, SF workflow | `01_feasibility_map.md` §22 | separate repo |
+
+> **CDS layer closed for this round, 2026-09-05** — client direction, deferring
+> Fiori UI/dashboard design to a later, separate round. Every "closed for this
+> round" row above is a deliberate stop, not an oversight — full reasoning and
+> what would unblock each one: `00_context_and_decisions.md` §7.
 
 ### Why Stages 4–5 were reordered
 

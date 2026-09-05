@@ -18,19 +18,21 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
   operational note in `docs/02_solution_architecture.md` §3).
 - Built to the **Vernasoft ABAP & RAP Engineering Rulebook v1.0**.
 
-> **Build status:** Stages 1–6 all pulled, activated, and verified clean
-> (T1/T2/T3 fixed along the way, see `docs/BUILD_ISSUES_LOG.md`). Stage 6's
-> original design (interface catalog table) was retired on client direction
-> (standard tables only, no customization — D9) and replaced with Payroll
-> Area Overview. Stage 3's refinement (`BackgroundJobHealth`) is confirmed
-> clean. **Three more increments pushed, pull pending:** Duplicate Employee
-> (Stage 1 refinement), Transport Summary by Type (Stage 4 refinement), and
-> Headcount by Employee Group (Stage 5 refinement) — all pure extensions of
-> already-proven ground, zero new custom DDIC, zero new external information
-> needed. **Stage 7 (Integration Monitoring) is on hold**, not
-> blocked-and-waiting — see `docs/03_stage7_data_collection.md`. Read
-> `docs/BUILD_ISSUES_LOG.md` §0 before touching any CDS in this repo — every
-> activation error goes there before the next stage is written.
+> **🏁 CDS layer closed, 2026-09-05.** Stages 1–6 plus four refinements
+> (Duplicate Employee, Background Job Health, Transport by Type, Headcount by
+> Group) are all pulled, activated, and confirmed clean (T1/T2/T3 fixed along
+> the way, see `docs/BUILD_ISSUES_LOG.md`). Everything that's safely
+> buildable from standard tables, with no new external information, is now
+> built. Everything still open is a **deliberate stop, not an oversight** —
+> full reasoning per item in `docs/00_context_and_decisions.md` §7: needs
+> real client data (Stage 7, New Joiners), needs an `SE11` field check
+> (Payroll status, Gateway stats), is a known-fragile pattern
+> (org hierarchy), needs a non-CDS object (cert expiry), is reframed as a
+> UI-layer concern (Alerts), or was always Phase 2 / the separate CAP track.
+> **Next: Fiori UI / dashboard-design**, a separate round on the client's own
+> timing — nothing more to build in CDS until then, or until one of the open
+> items gets unblocked. Read `docs/BUILD_ISSUES_LOG.md` §0 before touching
+> any CDS in this repo regardless.
 
 ---
 
@@ -45,7 +47,7 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
 
 | Doc | Purpose |
 |---|---|
-| [`docs/00_context_and_decisions.md`](docs/00_context_and_decisions.md) | Discussion log, locked decisions, confirmations received |
+| [`docs/00_context_and_decisions.md`](docs/00_context_and_decisions.md) | Discussion log, locked decisions, confirmations received — **§7 is the CDS-layer closure**: what's not built and why |
 | [`docs/01_feasibility_map.md`](docs/01_feasibility_map.md) | Every dashboard tile → data points → on-prem source → phase (P1 / P2 / CAP) |
 | [`docs/02_solution_architecture.md`](docs/02_solution_architecture.md) | Layering, naming, reuse strategy, rulebook deviations, stage roadmap |
 | [`docs/03_stage7_data_collection.md`](docs/03_stage7_data_collection.md) | **On hold** — kept for reference if Stage 7 is picked back up later |
@@ -57,7 +59,7 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
 |---|---|---|
 | Interface CDS | `ZI_TWR_EMP_BASIC` (anchor — includes `PayrollArea`, `EmployeeGroup`, `EmployeeSubgroup`), `ZI_TWR_EMP_CONTACT`, `ZI_TWR_EMP_BANK`, `ZI_TWR_DQ_ISSUE` (5-branch check union) | 1 ✅ |
 | Consumption CDS | `ZC_TWR_DQ_ISSUE` (list), `ZC_TWR_DQ_SUMMARY` (donut by category) | 1 ✅ |
-| Interface CDS | `ZI_TWR_EMP_DUP_KEY` (helper — name+DOB match count) | 1 *(refined)* 🔄 |
+| Interface CDS | `ZI_TWR_EMP_DUP_KEY` (helper — name+DOB match count) | 1 *(refined)* ✅ |
 | Interface CDS | `ZI_TWR_SEC_USER` (anchor, `USR02`) | 2 ✅ |
 | Consumption CDS | `ZC_TWR_SEC_USER` (list), `ZC_TWR_SEC_SUMMARY` (donut by lock status) | 2 ✅ |
 | Interface CDS | `ZI_TWR_BGJOB` (anchor, `TBTCO` — date/time fields are text, see T2) | 3 ✅ |
@@ -66,9 +68,9 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
 | Consumption CDS | `ZC_TWR_BGJOB_HEALTH` (`BackgroundJobHealth` — **the primary Background Jobs tile**), `ZC_TWR_BGJOB_HEALTH_SUMMARY` | 3 *(refined)* ✅ |
 | Interface CDS | `ZI_TWR_TRANSPORT` (anchor, `E070`, local system) | 4 ✅ |
 | Consumption CDS | `ZC_TWR_TRANSPORT` (list), `ZC_TWR_TRANSPORT_SUMMARY` (donut by status) | 4 ✅ |
-| Consumption CDS | `ZC_TWR_TRANSPORT_TYPE_SUMMARY` (donut by request type) | 4 *(refined)* 🔄 |
+| Consumption CDS | `ZC_TWR_TRANSPORT_TYPE_SUMMARY` (donut by request type) | 4 *(refined)* ✅ |
 | Consumption CDS | `ZC_TWR_HEADCOUNT` (donut by company/personnel area — no new interface view, reuses Stage 1's `ZI_TWR_EMP_BASIC`) | 5 ✅ |
-| Consumption CDS | `ZC_TWR_HEADCOUNT_BY_GROUP` (donut by employee group/subgroup — same reuse) | 5 *(refined)* 🔄 |
+| Consumption CDS | `ZC_TWR_HEADCOUNT_BY_GROUP` (donut by employee group/subgroup — same reuse) | 5 *(refined)* ✅ |
 | Consumption CDS | `ZC_TWR_PAYROLL_AREA` (donut by payroll area — no new interface view, reuses Stage 1's `ZI_TWR_EMP_BASIC`) | 6 ✅ |
 | Service | `ZTWR_UI_SRVD` (exposes all of the above) + `ZTWR_UI_SRVB_O4` (OData V4 – UI, published, shipped in the repo) | 1–6 |
 
@@ -83,26 +85,15 @@ Missing Cost Center, Missing Position (proxy for Invalid Position), Missing
 Bank/IBAN, and now Duplicate Employee. Missing Manager is still deferred —
 see `docs/02_solution_architecture.md` §26.
 
-## Pull & activate (Duplicate Employee, Transport by Type, Headcount by Group)
+## CDS layer: closed for this round
 
-`VS-Tower` is already linked to `ZABAP_UTIL`. One pull covers all three.
-
-1. Pull the repo — brings in `ZI_TWR_EMP_DUP_KEY` (helper), the extended
-   `ZI_TWR_DQ_ISSUE` (now 5 UNION branches), the extended `ZI_TWR_EMP_BASIC`
-   (2 new fields — `EmployeeGroup`, `EmployeeSubgroup`),
-   `ZC_TWR_TRANSPORT_TYPE_SUMMARY`, `ZC_TWR_HEADCOUNT_BY_GROUP`, and the
-   extended `ZTWR_UI_SRVD`.
-2. Package → **Activate All Inactive ABAP Development Objects** (run twice if
-   the first pass leaves cross-references inactive).
-3. Preview `DataQualityIssue` — should now include rows with
-   `CheckID = DUPLICATE_EMPLOYEE`, `Category = MASTER_DATA`. Total row count
-   should be at or above the previous 40,529 (this only adds rows).
-4. Preview `DataQualitySummary` — should show a new `MASTER_DATA` slice.
-5. Preview `TransportTypeSummary` and `HeadcountByGroup`.
-6. Re-check `HeadcountOverview` and `PayrollAreaOverview` still look right —
-   `ZI_TWR_EMP_BASIC` changed, and both read it.
-7. Report back clean/error for all of the above, and roughly how many
-   duplicate-employee rows appear.
+Everything above is pulled, activated, and confirmed clean by the client.
+There is nothing further queued to pull. The next round of work is the Fiori
+UI/dashboard design — a separate decision on the client's own timing — not
+more CDS. If any of the "closed for this round" items in
+`docs/02_solution_architecture.md` §8 gets unblocked (real interface data,
+an `SE11` field check, a D9 answer on Alerts/snapshot), that becomes its own
+stage at that point.
 
 ## Post-pull (not in the repo)
 

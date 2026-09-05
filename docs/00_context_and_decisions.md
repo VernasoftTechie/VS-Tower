@@ -125,7 +125,7 @@ window function — see `02_solution_architecture.md` §24 for why). Old
 drill-down entity. Pulled, activated, verified clean — no errors on the
 self-join.
 
-**Stage 1 refined: Duplicate Employee — pushed, pull pending.** The
+**Stage 1 refined: Duplicate Employee — done, confirmed clean.** The
 "aggregate helper + self-join" pattern proven by the Job Health work above
 de-risked the one Stage 1 check that had been deferred for exactly that
 reason. `ZI_TWR_EMP_DUP_KEY` (helper, `COUNT(*)` by name+DOB) + a 5th UNION
@@ -134,15 +134,58 @@ to the consumption layer — it picks up the new check automatically. Missing
 Manager remains deferred (different, unrelated blocker — HRP1001 relationship
 ID unconfirmed).
 
-**Two more refinements: Transport by Type, Headcount by Group — pushed, pull
-pending.** With the rest of the roadmap genuinely blocked (real interface
-data, unverified `T569V` fields, a D9 answer on Alerts, or known-fragile
-patterns like org hierarchy), picked pure extensions of already-proven ground
-instead: `ZC_TWR_TRANSPORT_TYPE_SUMMARY` (donut by `RequestType`, already on
-`ZI_TWR_TRANSPORT`) and `ZC_TWR_HEADCOUNT_BY_GROUP` (`EmployeeGroup`/
-`EmployeeSubgroup` added to `ZI_TWR_EMP_BASIC` — both fields were already in
-the verified-field list, inherited from Employee-360). Zero new custom DDIC,
-zero new risk, zero new external information needed.
+**Two more refinements: Transport by Type, Headcount by Group — done,
+confirmed clean.** With the rest of the roadmap genuinely blocked (real
+interface data, unverified `T569V` fields, a D9 answer on Alerts, or
+known-fragile patterns like org hierarchy), picked pure extensions of
+already-proven ground instead: `ZC_TWR_TRANSPORT_TYPE_SUMMARY` (donut by
+`RequestType`, already on `ZI_TWR_TRANSPORT`) and `ZC_TWR_HEADCOUNT_BY_GROUP`
+(`EmployeeGroup`/`EmployeeSubgroup` added to `ZI_TWR_EMP_BASIC` — both fields
+were already in the verified-field list, inherited from Employee-360). Zero
+new custom DDIC, zero new risk, zero new external information needed.
+
+## 7. CDS layer closure — 2026-09-05
+
+Client asked to finish the CDS layer entirely, deferring the Fiori
+UI/dashboard-design decision to a later, separate round. This section is
+that close-out: what's built, what deliberately isn't, and why — organized so
+nothing looks like an oversight.
+
+### Built — 6 stages, 4 refinements, 15 consumption/summary entities
+
+Data Quality (5 checks + summary) · Security Monitor (+ summary) ·
+Background Jobs — Health (primary) + History (full log), each with a summary
+· Transport Monitor, with summaries by status and by type · Headcount, by
+company/personnel-area and by employee group · Payroll Area Overview. Full
+object list: `README.md` → "What's in `/src`".
+
+### Not built — by reason, not by oversight
+
+| Reason | Items | What would unblock it |
+|---|---|---|
+| **Needs real client data** (business fact, not a technical one) | Integration Monitoring, Inbound Message Monitor (Stage 7) · New Joiners / Terminations (needs confirmed hire/leave action-type codes) | `03_stage7_data_collection.md`'s checklist · a confirmed action-type code list |
+| **Needs field verification in SE11** (technical fact, just unconfirmed here) | Payroll run status (`T569V`) · Gateway/OData statistics (Section E) · Security extras — privileged/dormant users, failed-logon counter | Five minutes in SE11 against the real field list, then it's the same risk class as everything already built |
+| **Known-fragile pattern, not attempted blind** | Org hierarchy / tree | Employee-360's own build log calls this out as "too fragile to debug blind" — attempt only against a live, testable system, same as they plan to |
+| **Needs a non-CDS object** (ABAP class/function-module call, not a plain view) | Certificate expiry (`STRUST` via `SSFC_GET_CERTIFICATELIST`) · true system availability | A phase that includes actual ABAP classes — outside "finish the CDS views" |
+| **Reframed — no new CDS object needed** | Alerts & Notifications | This is a UI-layer composition over summaries already built (e.g. `SecuritySummary` filtered to locked, `BackgroundJobHealthSummary` filtered to error) — a dashboard-assembly decision for the Fiori phase, not a CDS gap |
+| **Deliberately Phase 2** (never in this phase's scope) | Trends (needs a snapshot mechanism — pending the D9 question below) · Workflow + funnel · remote Transport Monitor (TMS RFC) · cert/OAuth/RFC alerts · Performance panel remainder | A phase explicitly scoped for after the Fiori UI decision |
+| **Explicitly CAP/BTP track, not this repo** | CPI message log, SF Recruiting/Performance, ECP payroll, SF/MDF workflow | Decision D3 — separate repo entirely |
+
+### Still open, carried forward (not blocking anything today)
+
+- Does D9 (standard tables only) also rule out the D5 snapshot table
+  (needed for every "vs yesterday" delta / trend chart) and a persistent
+  alert store? Not asked yet — first flagged when the interface catalog was
+  retired.
+- Package name `ZABAP_UTIL` is shared with `Utility-Class-and-Method` —
+  operational note in `02_solution_architecture.md` §3 still applies to every
+  future pull.
+
+### Next
+
+Fiori UI / dashboard-design decision — separate round, client's call on
+timing. Nothing further to build in CDS until either that decision lands, or
+one of the "not built" items above gets unblocked.
 
 ---
 
@@ -165,3 +208,4 @@ zero new risk, zero new external information needed.
 | 2026-09-05 | **Stage 3 refinement confirmed clean** — `BackgroundJobHealth` self-join activated with zero errors, client verified end-to-end. This is the second proven "aggregate helper + self-join" instance in this repo. |
 | 2026-09-05 | **Stage 1 refined: Duplicate Employee.** With the self-join pattern now proven twice, the one deferred Stage 1 check that needed it is no longer a blind guess. `ZI_TWR_EMP_DUP_KEY` (helper) + a 5th `ZI_TWR_DQ_ISSUE` UNION branch built and pushed — no consumption-layer changes needed. Missing Manager remains deferred (unrelated HRP1001 blocker). |
 | 2026-09-05 | Client asked to proceed two stages at a time. With the rest of the roadmap blocked on missing data or known-fragile patterns, built two pure extensions of proven ground instead: **Transport Summary by Type** (`ZC_TWR_TRANSPORT_TYPE_SUMMARY`) and **Headcount by Employee Group** (`EmployeeGroup`/`EmployeeSubgroup` added to `ZI_TWR_EMP_BASIC`, `ZC_TWR_HEADCOUNT_BY_GROUP`). Zero new custom DDIC, zero new external information needed. |
+| 2026-09-05 | Client confirmed the last 3 increments (Duplicate Employee, Transport by Type, Headcount by Group) all clean. Client then asked to close out the CDS layer entirely, deferring Fiori UI design to a later round. **§7 (CDS layer closure) added** — full inventory of what's built, and every remaining item bucketed by why it isn't (needs client data / needs SE11 verification / known-fragile / needs a non-CDS object / reframed as UI composition / Phase 2 / CAP track), so nothing reads as an oversight. |
