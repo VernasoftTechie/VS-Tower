@@ -1,0 +1,334 @@
+<mvc:View
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core"
+  xmlns:f="sap.f"
+  xmlns:card="sap.f.cards"
+  xmlns:l="sap.ui.layout"
+  xmlns:viz="sap.viz.ui5.controls"
+  xmlns:vizData="sap.viz.ui5.data"
+  xmlns:vizFeeds="sap.viz.ui5.controls.common.feeds"
+  controllerName="vstower.controltower.controller.Dashboard"
+  height="100%"
+  displayBlock="true">
+
+  <App id="app">
+  <Page id="page" class="ctPage" title="{i18n>pageTitle}" showHeader="true">
+    <headerContent>
+      <Button icon="sap-icon://refresh" tooltip="{i18n>refresh}" press=".onRefresh"/>
+    </headerContent>
+
+    <content>
+      <MessageStrip
+        id="errStrip"
+        visible="false"
+        type="Warning"
+        showIcon="true"
+        class="sapUiSmallMarginBottom"/>
+
+      <Text text="{i18n>subTitle}" class="sapUiTinyMarginBottom"/>
+
+      <!-- KPI strip -->
+      <l:Grid defaultSpan="XL3 L3 M6 S12" hSpacing="1" vSpacing="1" class="sapUiSmallMarginBottom">
+        <f:Card class="ctCard">
+          <f:header>
+            <card:NumericHeader title="{i18n>kpiDq}" number="{/kpi/dq}" state="Error"/>
+          </f:header>
+        </f:Card>
+        <f:Card class="ctCard">
+          <f:header>
+            <card:NumericHeader title="{i18n>kpiLocked}" number="{/kpi/locked}" state="Critical"/>
+          </f:header>
+        </f:Card>
+        <f:Card class="ctCard">
+          <f:header>
+            <card:NumericHeader title="{i18n>kpiJobsAttn}" number="{/kpi/jobsAttn}" state="Critical"/>
+          </f:header>
+        </f:Card>
+        <f:Card class="ctCard">
+          <f:header>
+            <card:NumericHeader title="{i18n>kpiTransportOpen}" number="{/kpi/transportOpen}" state="Good"/>
+          </f:header>
+        </f:Card>
+      </l:Grid>
+
+      <!-- Data Quality -->
+      <l:Grid defaultSpan="XL5 L5 M12 S12" hSpacing="1" vSpacing="1" class="sapUiSmallMarginBottom">
+        <f:Card class="ctCard">
+          <f:header><card:Header title="{i18n>cardDq}" subtitle="{i18n>cardDqSub}"/></f:header>
+          <f:content>
+            <viz:VizFrame id="vizDq" class="ctViz" vizType="donut" uiConfig="{applicationSet:'fiori'}">
+              <viz:dataset>
+                <vizData:FlattenedDataset data="{/dq/byCategory}">
+                  <vizData:dimensions><vizData:DimensionDefinition name="Category" value="{name}"/></vizData:dimensions>
+                  <vizData:measures><vizData:MeasureDefinition name="Issues" value="{value}"/></vizData:measures>
+                </vizData:FlattenedDataset>
+              </viz:dataset>
+              <viz:feeds>
+                <vizFeeds:FeedItem uid="size" type="Measure" values="Issues"/>
+                <vizFeeds:FeedItem uid="color" type="Dimension" values="Category"/>
+              </viz:feeds>
+            </viz:VizFrame>
+          </f:content>
+        </f:Card>
+        <f:Card class="ctCard">
+          <f:header><card:Header title="{i18n>cardDqDetail}" subtitle="{i18n>cardDqDetailSub}"/></f:header>
+          <f:content>
+            <Table items="{/dq/recent}" growing="true" growingThreshold="10" mode="None">
+              <columns>
+                <Column><Text text="{i18n>colEmployee}"/></Column>
+                <Column><Text text="{i18n>colCheck}"/></Column>
+                <Column><Text text="{i18n>colStatus}"/></Column>
+                <Column><Text text="{i18n>colField}"/></Column>
+              </columns>
+              <items>
+                <ColumnListItem>
+                  <cells>
+                    <Text text="{EmployeeID}"/>
+                    <Text text="{CheckID}"/>
+                    <ObjectStatus text="{Severity}" state="{= ${SeverityCriticality} === 1 ? 'Error' : 'Warning' }"/>
+                    <Text text="{FieldName}"/>
+                  </cells>
+                </ColumnListItem>
+              </items>
+            </Table>
+          </f:content>
+        </f:Card>
+      </l:Grid>
+
+      <!-- Security -->
+      <l:Grid defaultSpan="XL5 L5 M12 S12" hSpacing="1" vSpacing="1" class="sapUiSmallMarginBottom">
+        <f:Card class="ctCard">
+          <f:header><card:Header title="{i18n>cardSec}" subtitle="{i18n>cardSecSub}"/></f:header>
+          <f:content>
+            <viz:VizFrame id="vizSec" class="ctViz" vizType="donut" uiConfig="{applicationSet:'fiori'}">
+              <viz:dataset>
+                <vizData:FlattenedDataset data="{/security/byLock}">
+                  <vizData:dimensions><vizData:DimensionDefinition name="LockStatus" value="{name}"/></vizData:dimensions>
+                  <vizData:measures><vizData:MeasureDefinition name="Users" value="{value}"/></vizData:measures>
+                </vizData:FlattenedDataset>
+              </viz:dataset>
+              <viz:feeds>
+                <vizFeeds:FeedItem uid="size" type="Measure" values="Users"/>
+                <vizFeeds:FeedItem uid="color" type="Dimension" values="LockStatus"/>
+              </viz:feeds>
+            </viz:VizFrame>
+          </f:content>
+        </f:Card>
+        <f:Card class="ctCard">
+          <f:header><card:Header title="{i18n>cardSecDetail}" subtitle="{i18n>cardSecDetailSub}"/></f:header>
+          <f:content>
+            <Table items="{/security/byType}" mode="None">
+              <columns>
+                <Column><Text text="{i18n>colType}"/></Column>
+                <Column hAlign="End"><Text text="{i18n>colCount}"/></Column>
+              </columns>
+              <items>
+                <ColumnListItem>
+                  <cells>
+                    <Text text="{name}"/>
+                    <Text text="{value}"/>
+                  </cells>
+                </ColumnListItem>
+              </items>
+            </Table>
+          </f:content>
+        </f:Card>
+      </l:Grid>
+
+      <!-- Background Jobs -->
+      <l:Grid defaultSpan="XL7 L7 M12 S12" hSpacing="1" vSpacing="1" class="sapUiSmallMarginBottom">
+        <f:Card class="ctCard">
+          <f:header><card:Header title="{i18n>cardJobsDetail}" subtitle="{i18n>cardJobsDetailSub}"/></f:header>
+          <f:content>
+            <Table items="{/jobs/health}" mode="None">
+              <columns>
+                <Column><Text text="{i18n>colJobName}"/></Column>
+                <Column><Text text="{i18n>colStatus}"/></Column>
+              </columns>
+              <items>
+                <ColumnListItem>
+                  <cells>
+                    <Text text="{JobName}"/>
+                    <ObjectStatus text="{Status}" state="{= ${StatusCriticality} === 1 ? 'Error' : ${StatusCriticality} === 3 ? 'Success' : 'Warning' }"/>
+                  </cells>
+                </ColumnListItem>
+              </items>
+            </Table>
+          </f:content>
+        </f:Card>
+        <f:Card class="ctCard">
+          <f:header><card:Header title="{i18n>cardJobs}" subtitle="{i18n>cardJobsSub}"/></f:header>
+          <f:content>
+            <viz:VizFrame id="vizJobs" class="ctViz" vizType="donut" uiConfig="{applicationSet:'fiori'}">
+              <viz:dataset>
+                <vizData:FlattenedDataset data="{/jobs/byStatus}">
+                  <vizData:dimensions><vizData:DimensionDefinition name="Status" value="{name}"/></vizData:dimensions>
+                  <vizData:measures><vizData:MeasureDefinition name="Jobs" value="{value}"/></vizData:measures>
+                </vizData:FlattenedDataset>
+              </viz:dataset>
+              <viz:feeds>
+                <vizFeeds:FeedItem uid="size" type="Measure" values="Jobs"/>
+                <vizFeeds:FeedItem uid="color" type="Dimension" values="Status"/>
+              </viz:feeds>
+            </viz:VizFrame>
+          </f:content>
+        </f:Card>
+      </l:Grid>
+
+      <!-- Transport -->
+      <l:Grid defaultSpan="XL4 L4 M12 S12" hSpacing="1" vSpacing="1" class="sapUiSmallMarginBottom">
+        <f:Card class="ctCard">
+          <f:header><card:Header title="{i18n>cardTransportStatus}" subtitle="{i18n>cardTransportStatusSub}"/></f:header>
+          <f:content>
+            <viz:VizFrame id="vizTransportStatus" class="ctViz" vizType="donut" uiConfig="{applicationSet:'fiori'}">
+              <viz:dataset>
+                <vizData:FlattenedDataset data="{/transport/byStatus}">
+                  <vizData:dimensions><vizData:DimensionDefinition name="Status" value="{name}"/></vizData:dimensions>
+                  <vizData:measures><vizData:MeasureDefinition name="Requests" value="{value}"/></vizData:measures>
+                </vizData:FlattenedDataset>
+              </viz:dataset>
+              <viz:feeds>
+                <vizFeeds:FeedItem uid="size" type="Measure" values="Requests"/>
+                <vizFeeds:FeedItem uid="color" type="Dimension" values="Status"/>
+              </viz:feeds>
+            </viz:VizFrame>
+          </f:content>
+        </f:Card>
+        <f:Card class="ctCard">
+          <f:header><card:Header title="{i18n>cardTransportType}" subtitle="{i18n>cardTransportTypeSub}"/></f:header>
+          <f:content>
+            <viz:VizFrame id="vizTransportType" class="ctViz" vizType="donut" uiConfig="{applicationSet:'fiori'}">
+              <viz:dataset>
+                <vizData:FlattenedDataset data="{/transport/byType}">
+                  <vizData:dimensions><vizData:DimensionDefinition name="Type" value="{name}"/></vizData:dimensions>
+                  <vizData:measures><vizData:MeasureDefinition name="Requests" value="{value}"/></vizData:measures>
+                </vizData:FlattenedDataset>
+              </viz:dataset>
+              <viz:feeds>
+                <vizFeeds:FeedItem uid="size" type="Measure" values="Requests"/>
+                <vizFeeds:FeedItem uid="color" type="Dimension" values="Type"/>
+              </viz:feeds>
+            </viz:VizFrame>
+          </f:content>
+        </f:Card>
+        <f:Card class="ctCard">
+          <f:header><card:Header title="{i18n>cardTransportDetail}" subtitle="{i18n>cardTransportDetailSub}"/></f:header>
+          <f:content>
+            <Table items="{/transport/recent}" growing="true" growingThreshold="8" mode="None">
+              <columns>
+                <Column><Text text="{i18n>colRequest}"/></Column>
+                <Column><Text text="{i18n>colOwner}"/></Column>
+              </columns>
+              <items>
+                <ColumnListItem>
+                  <cells>
+                    <Text text="{TransportRequest}"/>
+                    <Text text="{Owner}"/>
+                  </cells>
+                </ColumnListItem>
+              </items>
+            </Table>
+          </f:content>
+        </f:Card>
+      </l:Grid>
+
+      <!-- Workforce -->
+      <l:Grid defaultSpan="XL4 L4 M12 S12" hSpacing="1" vSpacing="1" class="sapUiSmallMarginBottom">
+        <f:Card class="ctCard">
+          <f:header><card:Header title="{i18n>cardHeadcountArea}" subtitle="{i18n>cardHeadcountAreaSub}"/></f:header>
+          <f:content>
+            <viz:VizFrame id="vizHeadcountArea" class="ctViz" vizType="donut" uiConfig="{applicationSet:'fiori'}">
+              <viz:dataset>
+                <vizData:FlattenedDataset data="{/workforce/byArea}">
+                  <vizData:dimensions><vizData:DimensionDefinition name="Company" value="{name}"/></vizData:dimensions>
+                  <vizData:measures><vizData:MeasureDefinition name="Employees" value="{value}"/></vizData:measures>
+                </vizData:FlattenedDataset>
+              </viz:dataset>
+              <viz:feeds>
+                <vizFeeds:FeedItem uid="size" type="Measure" values="Employees"/>
+                <vizFeeds:FeedItem uid="color" type="Dimension" values="Company"/>
+              </viz:feeds>
+            </viz:VizFrame>
+          </f:content>
+        </f:Card>
+        <f:Card class="ctCard">
+          <f:header><card:Header title="{i18n>cardHeadcountGroup}" subtitle="{i18n>cardHeadcountGroupSub}"/></f:header>
+          <f:content>
+            <viz:VizFrame id="vizHeadcountGroup" class="ctViz" vizType="donut" uiConfig="{applicationSet:'fiori'}">
+              <viz:dataset>
+                <vizData:FlattenedDataset data="{/workforce/byGroup}">
+                  <vizData:dimensions><vizData:DimensionDefinition name="Group" value="{name}"/></vizData:dimensions>
+                  <vizData:measures><vizData:MeasureDefinition name="Employees" value="{value}"/></vizData:measures>
+                </vizData:FlattenedDataset>
+              </viz:dataset>
+              <viz:feeds>
+                <vizFeeds:FeedItem uid="size" type="Measure" values="Employees"/>
+                <vizFeeds:FeedItem uid="color" type="Dimension" values="Group"/>
+              </viz:feeds>
+            </viz:VizFrame>
+          </f:content>
+        </f:Card>
+        <f:Card class="ctCard">
+          <f:header><card:Header title="{i18n>cardPayrollArea}" subtitle="{i18n>cardPayrollAreaSub}"/></f:header>
+          <f:content>
+            <viz:VizFrame id="vizPayrollArea" class="ctViz" vizType="donut" uiConfig="{applicationSet:'fiori'}">
+              <viz:dataset>
+                <vizData:FlattenedDataset data="{/workforce/byPayrollArea}">
+                  <vizData:dimensions><vizData:DimensionDefinition name="Area" value="{name}"/></vizData:dimensions>
+                  <vizData:measures><vizData:MeasureDefinition name="Employees" value="{value}"/></vizData:measures>
+                </vizData:FlattenedDataset>
+              </viz:dataset>
+              <viz:feeds>
+                <vizFeeds:FeedItem uid="size" type="Measure" values="Employees"/>
+                <vizFeeds:FeedItem uid="color" type="Dimension" values="Area"/>
+              </viz:feeds>
+            </viz:VizFrame>
+          </f:content>
+        </f:Card>
+      </l:Grid>
+
+      <!-- Workflow -->
+      <l:Grid defaultSpan="XL5 L5 M12 S12" hSpacing="1" vSpacing="1">
+        <f:Card class="ctCard">
+          <f:header><card:Header title="{i18n>cardWorkflow}" subtitle="{i18n>cardWorkflowSub}"/></f:header>
+          <f:content>
+            <viz:VizFrame id="vizWorkflow" class="ctViz" vizType="donut" uiConfig="{applicationSet:'fiori'}">
+              <viz:dataset>
+                <vizData:FlattenedDataset data="{/workflow/byStatus}">
+                  <vizData:dimensions><vizData:DimensionDefinition name="Status" value="{name}"/></vizData:dimensions>
+                  <vizData:measures><vizData:MeasureDefinition name="Items" value="{value}"/></vizData:measures>
+                </vizData:FlattenedDataset>
+              </viz:dataset>
+              <viz:feeds>
+                <vizFeeds:FeedItem uid="size" type="Measure" values="Items"/>
+                <vizFeeds:FeedItem uid="color" type="Dimension" values="Status"/>
+              </viz:feeds>
+            </viz:VizFrame>
+          </f:content>
+        </f:Card>
+        <f:Card class="ctCard">
+          <f:header><card:Header title="{i18n>cardWorkflowDetail}" subtitle="{i18n>cardWorkflowDetailSub}"/></f:header>
+          <f:content>
+            <Table items="{/workflow/recent}" growing="true" growingThreshold="10" mode="None">
+              <columns>
+                <Column><Text text="{i18n>colType}"/></Column>
+                <Column><Text text="{i18n>colStatus}"/></Column>
+              </columns>
+              <items>
+                <ColumnListItem>
+                  <cells>
+                    <Text text="{WorkItemType}"/>
+                    <Text text="{Status}"/>
+                  </cells>
+                </ColumnListItem>
+              </items>
+            </Table>
+          </f:content>
+        </f:Card>
+      </l:Grid>
+
+    </content>
+  </Page>
+  </App>
+</mvc:View>

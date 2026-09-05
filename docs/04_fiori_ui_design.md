@@ -1,33 +1,41 @@
 # VS-Tower — Fiori UI Design (Doc 04)
 
-**Status:** Recommendation, ready for a Fiori developer to execute.
+**Status:** §1's OVP recommendation was **superseded** — see the update box
+below. Sections 2–8 (card map, groupings, KPI-strip design, navigation,
+launchpad tile) still describe the actual app; it's just built as freestyle
+SAPUI5 now, in `/ui/controltower`, not generated as an OVP app.
 **Preview:** an illustrative mockup of this layout —
 https://claude.ai/code/artifact/97cfe246-dc8d-425f-b8dc-d133ed09ab3f
 (numbers on it are examples for layout review, not live data; the real app
 will render in SAP Horizon, not this mockup's exact colors/fonts).
 
+> **Update, 2026-09-05: built as freestyle, not OVP.** §1's OVP
+> recommendation assumed OVP's chart/list card types would bind cleanly
+> against an OData **V4** service without needing to verify that first — a
+> real, unvetted assumption, unlike everything else in this build which
+> follows a pattern already proven on this system. Employee-360 already has
+> a **working, deployed freestyle app** (`ui/dashboard`) doing the exact
+> same job — KPI tiles (`sap.f.Card`/`NumericHeader`), donut charts
+> (`sap.viz.VizFrame`), live OData V4 reads (`bindList`/`requestContexts`
+> into a local `JSONModel`) — against the same kind of service this repo
+> publishes. Rather than resolve the OVP-V4 question blind, `/ui/controltower`
+> mirrors that proven app's structure directly, card-for-card against §2's
+> map. See `/ui/README.md` for how to deploy it. Same discipline as the
+> ABAP side: first deploy is genuinely untested, report back whatever
+> renders (or doesn't) and it gets fixed the same way T1–T4 were.
+
 ---
 
-## 1. App type — Fiori Elements Overview Page, not freestyle
+## 1. App type — superseded, see the update box above
 
-The original architecture (`02_solution_architecture.md` §4) called for a
-**freestyle** SAPUI5 shell, because the dashboard's Workflow funnel and Org
-Structure tree aren't standard Fiori Elements chart types. Neither of those
-got built in this CDS round (funnel = Phase 2/pending a decision below; org
-tree = deliberately deferred, `00_context_and_decisions.md` §7). Every entity
-that **is** built is either:
-
-- an **analytical card** shape (a `GROUP BY` + `COUNT` view with a
-  `@UI.chart` donut annotation already on it), or
-- a **list card** shape (a plain list view with `@UI.lineItem`/
-  `selectionField`/`identification` already on it, ready for a List
-  Report/Object Page).
-
-Both are exactly what a **Fiori Elements Overview Page (OVP)** app is built
-from, out of the box, with no custom JavaScript. **Recommendation: build the
-first version as an OVP app**, and only reach for freestyle cards later, if
-and when Workflow's funnel or an Org tree actually gets built — don't build
-freestyle infrastructure today for visuals that don't exist yet.
+~~Fiori Elements Overview Page~~. Kept below for the reasoning trail only —
+every entity built (analytical `GROUP BY`+`@UI.chart` views, or list views
+with `@UI.lineItem`/`selectionField`) is still exactly OVP-card-shaped in
+principle; the objection was never the data shape, only the unverified
+OData V4 + OVP pairing. If that gets confirmed later (SAP notes, a working
+example, or simply asking whoever owns the Fiori/BTP side), rebuilding this
+as a declarative OVP app instead of the current hand-written one is a
+reasonable follow-up — the CDS layer needs no changes either way.
 
 ## 2. Card map — one row per OVP card
 
@@ -93,25 +101,23 @@ are all already keys with `@UI.selectionField` for the filter bar.
 
 ## 7. What the Fiori developer does
 
-1. In SAP Business Application Studio (or ADT's Fiori tools), generate a new
-   **SAP Fiori Overview Page** application, pointed at OData service
-   `ZTWR_UI_SRVB_O4`.
-2. Add one card per row in §2's table, grouped per §3.
-3. Configure the KPI header per §4.
-4. Wire the launchpad tile per §6.
-5. Theme: SAP Horizon (Quartz Light default) — no custom theming needed, the
-   annotations already carry the semantic coloring (`criticality` on
-   `Severity`/`Status`/`IsLocked` fields drives Fiori's own status colors
-   automatically).
+The app is already written — `/ui/controltower`, mirroring Employee-360's
+`ui/dashboard` structure card-for-card against §2's map. Nothing to generate.
 
-No manifest/annotation files are shipped in this repo yet — that's the
-Fiori developer's own project, built against the already-published,
-already-tested OData service. If UI-layer annotations (metadata extensions
-for facets, custom chart qualifiers, etc.) turn out to be needed beyond what
-inline `@UI` already provides, those come back into this repo as `.ddlx`
-files once authored — see Employee-360's own note on that
-(`BUILD_ISSUES_LOG.md` C2: author them in ADT/BAS against a live system,
-not hand-written blind).
+1. Fill in 3 values in `ui5-deploy.yaml` (host, client, transport) —
+   `/ui/README.md` walks through it.
+2. `npm install && npm run deploy` — builds and uploads as BSP application
+   `ZTWR_CONTROL_TOWER` into package `ZABAP_UTIL`.
+3. Open `https://<host>:<port>/sap/bc/ui5_ui5/sap/ztwr_control_tower/index.html`
+   and report back what actually renders — this is the first real test of
+   the app, same as every ABAP stage's first pull.
+4. Once it renders correctly, wire the launchpad tile per §6 (needs Basis).
+5. Theme: SAP Horizon (`sap_horizon`, already set in `index.html`) — no
+   custom theming needed.
+
+If something doesn't render, that's expected on a first deploy — report the
+browser console error and it gets logged/fixed the same way T1–T4 were on
+the ABAP side, not guessed at blind.
 
 ## 8. Workflow — data now available, funnel still not
 

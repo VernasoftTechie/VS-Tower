@@ -1,0 +1,9 @@
+.ctCard {
+  height: 100%;
+}
+.ctViz {
+  height: 16rem;
+}
+.ctPage {
+  background-color: var(--sapBackgroundColor);
+}

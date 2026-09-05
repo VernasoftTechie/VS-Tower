@@ -158,15 +158,17 @@ Employee-360). Maps onto the Phase 1 / Phase 2 / CAP split in
 | 11 | ⏸ **Closed for this round** — needs `T569V` field verification | Payroll run status/control record | §12 (I) | None |
 | 12 | ⏸ **Reframed** — no new CDS object; UI-layer composition over existing summaries | Alerts list (display-only) | §15 (L) | None needed |
 | — | Not started | Freestyle dashboard shell assembling everything built so far; Fiori Elements drill-downs per entity | §21 (R) | — |
-| 13 | 🔄 Pushed, pull pending | **Workflow Item Overview** — conservative first cut, `SWWWIHEAD` only, raw type/status. See §30. Reopened at client request; funnel visual and `SWWUSERWI`/manager-inbox still Phase 2. | §13 (J, partial) | None |
+| 13 | ✅ **Done** — hit T4 (EDM name collision), fixed, confirmed clean | **Workflow Item Overview** — conservative first cut, `SWWWIHEAD` only, raw type/status. See §30. Reopened at client request; funnel visual and `SWWUSERWI`/manager-inbox still Phase 2. | §13 (J, partial) | None |
 | Phase 2 | Not started | Trends (needs a snapshot history mechanism — see the D9 open question in `00_context_and_decisions.md` §3), Workflow **funnel** + manager-inbox (`SWWUSERWI`), remote Transport Monitor (TMS RFC), cert/OAuth/RFC alerts, Performance panel | `01_feasibility_map.md` §25 | per section |
 | CAP track | Not started | CPI MPL, SF Recruiting/Performance, ECP payroll, SF workflow | `01_feasibility_map.md` §22 | separate repo |
 
-> **CDS layer closed 2026-09-05** (§7), **Workflow reopened same day** at
-> client request once the tables' active use was confirmed (§30) — everything
-> else marked "closed for this round" is still a deliberate stop, not an
-> oversight. Full reasoning and what would unblock each one:
-> `00_context_and_decisions.md` §7–§8.
+> **CDS/ABAP layer confirmed clean end-to-end, 2026-09-05** (§7's closure,
+> Workflow reopened and shipped the same day at client request — §30, T4
+> fixed). Everything still marked "closed for this round" above is a
+> deliberate stop, not an oversight — full reasoning and what would unblock
+> each one: `00_context_and_decisions.md` §7–§8. **UI build now in progress**
+> — `/ui/controltower`, see `docs/04_fiori_ui_design.md`'s update box for
+> what changed from the original OVP recommendation.
 
 ### Why Stages 4–5 were reordered
 

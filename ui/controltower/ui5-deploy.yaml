@@ -1,0 +1,26 @@
+specVersion: "3.1"
+metadata:
+  name: vstower.controltower
+type: application
+builder:
+  resources:
+    excludes:
+      - "/test/**"
+      - "/localService/**"
+  customTasks:
+    - name: deploy-to-abap
+      afterTask: generateCachebusterInfo
+      configuration:
+        target:
+          url: http://REPLACE-WITH-YOUR-S4-HOST:PORT
+          client: "REPLACE-CLIENT"
+        credentials:
+          username: env:ABAP_USER
+          password: env:ABAP_PASSWORD
+        app:
+          name: ZTWR_CONTROL_TOWER
+          package: ZABAP_UTIL
+          transport: REPLACE-WITH-TRANSPORT
+          description: "VS SF Control Tower dashboard"
+        exclude:
+          - /test/

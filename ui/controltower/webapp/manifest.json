@@ -1,0 +1,62 @@
+{
+  "_version": "1.58.0",
+  "sap.app": {
+    "id": "vstower.controltower",
+    "type": "application",
+    "i18n": {
+      "bundleUrl": "i18n/i18n.properties",
+      "supportedLocales": [ "" ],
+      "fallbackLocale": ""
+    },
+    "title": "{{appTitle}}",
+    "description": "{{appDescription}}",
+    "applicationVersion": { "version": "1.0.0" },
+    "dataSources": {
+      "mainService": {
+        "uri": "/sap/opu/odata4/sap/ztwr_ui_srvb_o4/srvd/sap/ztwr_ui_srvd/0001/",
+        "type": "OData",
+        "settings": { "odataVersion": "4.0" }
+      }
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "deviceTypes": { "desktop": true, "tablet": true, "phone": true }
+  },
+  "sap.ui5": {
+    "rootView": { "viewName": "vstower.controltower.view.Dashboard", "type": "XML", "id": "app", "async": true },
+    "dependencies": {
+      "minUI5Version": "1.108.0",
+      "libs": {
+        "sap.ui.core": {},
+        "sap.m": {},
+        "sap.f": {},
+        "sap.ui.layout": {},
+        "sap.viz": {}
+      }
+    },
+    "models": {
+      "i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "settings": {
+          "bundleName": "vstower.controltower.i18n.i18n",
+          "supportedLocales": [ "" ],
+          "fallbackLocale": ""
+        }
+      },
+      "odata": {
+        "dataSource": "mainService",
+        "settings": {
+          "synchronizationMode": "None",
+          "operationMode": "Server",
+          "autoExpandSelect": true,
+          "earlyRequests": false
+        }
+      }
+    },
+    "resources": {
+      "css": [ { "uri": "css/style.css" } ]
+    },
+    "contentDensities": { "compact": true, "cozy": true }
+  }
+}

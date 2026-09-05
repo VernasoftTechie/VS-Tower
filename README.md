@@ -18,24 +18,25 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
   operational note in `docs/02_solution_architecture.md` §3).
 - Built to the **Vernasoft ABAP & RAP Engineering Rulebook v1.0**.
 
-> **🏁 CDS layer closed, 2026-09-05 — Workflow reopened same day.** Stages 1–6
-> plus five refinements (Duplicate Employee, Background Job Health, Transport
-> by Type, Headcount by Group, and now Workflow Item Overview) are pulled,
-> activated, and confirmed clean, except Workflow which is pushed and
-> awaiting its first pull (T1/T2/T3 fixed along the way, see
-> `docs/BUILD_ISSUES_LOG.md`). Client asked specifically about Workflow after
-> the closure and confirmed `SWWWIHEAD`/`SWWUSERWI` are in force, so a
-> conservative first cut (raw type/status counts from `SWWWIHEAD` alone, no
-> dates, no `SWWUSERWI`) was built — see `docs/02_solution_architecture.md`
-> §30. Everything else still open is a **deliberate stop, not an oversight**
-> — full reasoning per item in `docs/00_context_and_decisions.md` §7: needs
-> real client data (Stage 7, New Joiners), needs an `SE11` field check
-> (Payroll status, Gateway stats), is a known-fragile pattern
-> (org hierarchy), needs a non-CDS object (cert expiry), is reframed as a
-> UI-layer concern (Alerts), or was always Phase 2 / the separate CAP track
-> (Workflow's funnel visual and manager-inbox data included). Client has
-> also greenlit Fiori UI design — see `docs/04_fiori_ui_design.md`. Read
-> `docs/BUILD_ISSUES_LOG.md` §0 before touching any CDS in this repo.
+> **🏁 CDS layer confirmed clean end-to-end, 2026-09-05 — UI build started.**
+> Stages 1–6 plus six refinements (Duplicate Employee, Background Job Health,
+> Transport by Type, Headcount by Group, Workflow Item Overview, and the T4
+> entity-set-naming fix) are all pulled, activated, and confirmed clean
+> (T1–T4 fixed along the way, see `docs/BUILD_ISSUES_LOG.md`). Everything
+> still open in CDS is a **deliberate stop, not an oversight** — full
+> reasoning per item in `docs/00_context_and_decisions.md` §7–§8: needs real
+> client data (Stage 7, New Joiners), needs an `SE11` field check (Payroll
+> status, Gateway stats, `SWWUSERWI`), is a known-fragile pattern (org
+> hierarchy), needs a non-CDS object (cert expiry), is reframed as a UI-layer
+> concern (Alerts), or was always Phase 2 / the separate CAP track.
+>
+> **The Fiori app is now being built** — `/ui/controltower`, freestyle
+> SAPUI5 mirroring Employee-360's own proven `ui/dashboard` app (not the
+> Fiori Elements Overview Page originally recommended in
+> `docs/04_fiori_ui_design.md` — see that doc's update box for why). Not yet
+> deployed or visually verified — see `/ui/README.md` to deploy it and
+> `/ui/README.md`'s troubleshooting table for what to do if something's
+> blank.
 
 ---
 
@@ -44,6 +45,8 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
 ```
 /docs   scoping, decisions, architecture, build issues log
 /src    abapGit source — STARTING_FOLDER=/src/, FOLDER_LOGIC=PREFIX
+/ui     Fiori app (freestyle SAPUI5, mirrors Employee-360's ui/dashboard) —
+        see ui/README.md to deploy
 ```
 
 ## Documents
