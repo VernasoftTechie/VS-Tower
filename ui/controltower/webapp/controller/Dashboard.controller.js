@@ -660,7 +660,7 @@ sap.ui.define([
     _renderCards: function () {
       var aCards = this._collectCards();
       this._cardIndex = {};
-      aCards.forEach(function (c) { this._cardIndex[c.id] = c; });
+      aCards.forEach(function (c) { this._cardIndex[c.id] = c; }.bind(this));
 
       var attention = aCards.filter(function (c) { return c.section === "attention"; });
       var workforce = aCards.filter(function (c) { return c.section === "workforce"; });
