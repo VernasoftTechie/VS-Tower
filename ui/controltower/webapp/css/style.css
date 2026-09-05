@@ -1,16 +1,64 @@
-.ctCard {
-  height: 100%;
+.ctPage {
+  background-color: var(--sapBackgroundColor);
+}
+
+/* ---------------------------------------------------------------------
+   Card grid (2026-09-05 redesign) - compact, uniform-size chart cards,
+   no tables on the dashboard itself. Ported from the approved mockup;
+   colors map onto SAP Horizon theme tokens (with literal fallbacks) so
+   the grid stays on-theme in both light and dark instead of carrying its
+   own fixed palette. See the design note in Dashboard.view.xml.
+   ------------------------------------------------------------------- */
+
+.section-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--sapContent_LabelColor, var(--sapNeutralColor));
+  margin: 20px 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.section-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--sapList_BorderColor, #e2e7ec);
+}
+
+.ctGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.card {
+  background: var(--sapTile_Background, var(--sapContent_Background, #fff));
+  border: 1px solid var(--sapList_BorderColor, #e2e7ec);
+  border-radius: 10px;
+  padding: 14px 14px 12px;
+  box-shadow: 0 1px 2px rgba(20, 30, 40, 0.06);
+  cursor: pointer;
+  transition: transform 0.16s ease-out, box-shadow 0.16s ease-out, border-color 0.16s ease-out;
+  display: flex;
+  flex-direction: column;
+  height: 260px;
   position: relative;
   overflow: hidden;
-  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
 }
-.ctCard:hover {
+.card:hover, .card:focus-visible {
   transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
+  box-shadow: 0 4px 16px rgba(20, 30, 40, 0.14);
+  border-color: var(--sapAccentColor6, #0a6ed1);
 }
-/* Thin gradient accent along the top edge of every card - Horizon accent
-   tokens, not an arbitrary brand gradient, so it stays on-theme. */
-.ctCard::before {
+.card:focus-visible {
+  outline: 2px solid var(--sapAccentColor6, #0a6ed1);
+  outline-offset: 2px;
+}
+.card::before {
   content: "";
   position: absolute;
   top: 0;
@@ -19,28 +67,178 @@
   height: 3px;
   background: linear-gradient(90deg, var(--sapAccentColor6, #0a6ed1), var(--sapAccentColor3, #925ace));
   opacity: 0.85;
-  z-index: 1;
 }
-/* The Action Center leads the page - a thicker, single-hue accent (not the
-   two-tone gradient every other card gets) marks it as the one card that
-   isn't peer to the rest. */
-.ctActionCard::before {
-  height: 4px;
-  background: var(--sapAccentColor6, #0a6ed1);
+
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+.card-title {
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.card-sub {
+  font-size: 0.66rem;
+  color: var(--sapContent_LabelColor, var(--sapNeutralColor));
+  margin-top: 2px;
+}
+.expand-hint {
+  font-size: 0.66rem;
+  color: var(--sapAccentColor6, #0a6ed1);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.card:hover .expand-hint, .card:focus-visible .expand-hint {
   opacity: 1;
 }
 
-.ctViz {
-  height: 16rem;
+.card-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 0;
+  margin-top: 6px;
 }
-.ctPage {
-  background-color: var(--sapBackgroundColor);
+.kpi-col {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 60px;
+}
+.kpi-num {
+  font-size: 1.8rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--sapTextColor);
+}
+.kpi-label {
+  font-size: 0.64rem;
+  color: var(--sapContent_LabelColor, var(--sapNeutralColor));
+  margin-top: 3px;
+  line-height: 1.3;
+}
+
+.chart-col {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.donut-svg {
+  flex: none;
+}
+.legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--sapTextColor);
+}
+.swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex: none;
+}
+.legend .val {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  padding-left: 6px;
+}
+
+.insight {
+  font-size: 0.72rem;
+  color: var(--sapContent_LabelColor, var(--sapNeutralColor));
+  border-top: 1px solid var(--sapList_BorderColor, #e2e7ec);
+  padding-top: 7px;
+  margin-top: 7px;
+  line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.insight b {
+  color: var(--sapTextColor);
+  font-weight: 600;
+}
+
+.bar-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+.bar-row {
+  display: grid;
+  grid-template-columns: 68px 1fr 30px;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.7rem;
+}
+.bar-row .who {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--sapTextColor);
+}
+.bar-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--sapList_Background, #eef2f6);
+  overflow: hidden;
+  display: flex;
+}
+.bar-fill-open {
+  background: var(--sapCriticalColor, #e9730c);
+  height: 100%;
+}
+.bar-fill-rel {
+  background: var(--sapPositiveColor, #107e3e);
+  height: 100%;
+}
+.bar-row .n {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--sapTextColor);
+}
+
+/* KPI tiles/cards that currently have something to attend to (count > 0)
+   get a soft outward pulse instead of sitting static. */
+.ctPulseAlert {
+  animation: ctPulseGlow 2.2s ease-in-out infinite;
+}
+@keyframes ctPulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(187, 0, 0, 0); }
+  50% { box-shadow: 0 0 0 6px rgba(187, 0, 0, 0.14); }
 }
 
 /* "Live" indicator in the header - a slow, deliberate blink, not a strobe. */
-.ctLiveWrap {
-  display: inline-flex;
-}
+.ctLiveWrap { display: inline-flex; }
 .ctLiveDot {
   font-size: 0.6rem;
   animation: ctBlink 1.6s ease-in-out infinite;
@@ -49,38 +247,60 @@
   font-size: 0.75rem;
   color: var(--sapContent_LabelColor, var(--sapNeutralColor));
 }
-.ctLastUpdated {
-  font-variant-numeric: tabular-nums;
-}
-
-/* KPI tiles that currently have something to attend to (count > 0) get a
-   soft outward pulse instead of sitting static - bound conditionally per
-   tile in the view (kpi/dq, kpi/locked, kpi/jobsAttn), not decorative. */
-.ctPulseAlert {
-  animation: ctPulseGlow 2.2s ease-in-out infinite;
-}
-
+.ctLastUpdated { font-variant-numeric: tabular-nums; }
 @keyframes ctBlink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
 }
 
-@keyframes ctPulseGlow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(187, 0, 0, 0); }
-  50% { box-shadow: 0 0 0 7px rgba(187, 0, 0, 0.16); }
-}
-
-/* Respect the OS-level reduced-motion preference - the blink/pulse/hover
-   motion is decoration, never the only carrier of state (color + text still
-   say "Error"/"Critical" without it). */
 @media (prefers-reduced-motion: reduce) {
-  .ctCard,
-  .ctLiveDot,
-  .ctPulseAlert {
+  .card, .ctLiveDot, .ctPulseAlert {
     animation: none !important;
     transition: none !important;
   }
-  .ctCard:hover {
-    transform: none;
-  }
+  .card:hover { transform: none; }
 }
+
+/* ---------------------------------------------------------------------
+   Drill-down dialog table (sap.m.Dialog > sap.ui.core.HTML)
+   ------------------------------------------------------------------- */
+table.detail {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+table.detail th {
+  text-align: left;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--sapContent_LabelColor, var(--sapNeutralColor));
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--sapList_BorderColor, #e2e7ec);
+  position: sticky;
+  top: 0;
+  background: var(--sapTile_Background, var(--sapContent_Background, #fff));
+}
+table.detail td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--sapList_BorderColor, #e2e7ec);
+  vertical-align: top;
+  color: var(--sapTextColor);
+}
+table.detail tr:last-child td { border-bottom: none; }
+.ctEmptyDetail {
+  color: var(--sapContent_LabelColor, var(--sapNeutralColor));
+  font-size: 0.85rem;
+  padding: 20px 4px;
+}
+.status-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.chip-crit { background: color-mix(in srgb, var(--sapNegativeColor, #bb0000) 16%, transparent); color: var(--sapNegativeColor, #bb0000); }
+.chip-warn { background: color-mix(in srgb, var(--sapCriticalColor, #e9730c) 16%, transparent); color: var(--sapCriticalColor, #e9730c); }
+.chip-good { background: color-mix(in srgb, var(--sapPositiveColor, #107e3e) 16%, transparent); color: var(--sapPositiveColor, #107e3e); }

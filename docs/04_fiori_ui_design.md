@@ -37,17 +37,38 @@ example, or simply asking whoever owns the Fiori/BTP side), rebuilding this
 as a declarative OVP app instead of the current hand-written one is a
 reasonable follow-up — the CDS layer needs no changes either way.
 
-## 2. Card map — one row per OVP card
+## 2. Card map — superseded again, see the 2026-09-05 box
 
-> **Update, 2026-09-05: Action Center added, leads the page.** Reframed
-> around a technical-manager use case — "what needs attention, who do I
-> call" — rather than opening straight into per-domain donuts. One
-> cross-domain table, worst item first (Data Quality/Security/Jobs/
-> Transport/Workflow), each row carrying a **Contact**: the record's own
-> owner where one exists (`BackgroundJobHealth.Owner` = `SDLUNAME`,
-> `TransportRequestSet.Owner` = `AS4USER`), else a fixed team name
-> (Security, Data Quality) or a "not yet mapped" placeholder (Workflow,
-> pending `SWWUSERWI`). See `ui/README.md` "What this covers."
+> **Update, 2026-09-05: rebuilt as a compact chart-only grid with
+> click-to-drill-down.** The client asked to see the design before any code
+> changed; a click-through mockup was built and approved
+> (https://claude.ai/code/artifact/d2de6b05-368c-4d15-88b7-d83e47e72245),
+> then the real app was rebuilt to match. What changed from the table below
+> (kept for the reasoning trail, not current):
+> - **No tables on the dashboard at all.** Every card is chart-only — a
+>   number, a compact donut or by-owner bar chart with its legend/values
+>   beside it, and a one-line plain-English finding. Detail lists (what used
+>   to be separate "list" cards below) now live only in a drill-down dialog,
+>   opened by clicking the card.
+> - **Uniform card size.** Every card is the same fixed height, in one
+>   auto-fill grid — not the varied-span layout the table below describes.
+> - **The manager's own request, applied everywhere it genuinely fits**:
+>   Transport by Owner (already in the table below) got a sibling,
+>   **Background Jobs by Owner** — same open-count-per-ID bar chart, backed
+>   by the new `Owner` field on `BackgroundJobHealth`. Not applied to
+>   Security/Data Quality — those aren't assigned to a consultant ID in the
+>   source tables, so a per-record "owner" there would be invented, not
+>   reported.
+> - **Two cards dropped**: Job Run History and Transport by Type weren't
+>   part of what the client reviewed and approved — removed rather than
+>   carried forward as dead weight (and `TransportTypeSummary` is no longer
+>   even read, saving a request every 5s cycle).
+> - Charts are hand-rolled SVG/CSS (`Dashboard.controller.js`), not
+>   `sap.viz.VizFrame` — full control over the compact, uniform sizing the
+>   approved mockup needed. `sap.viz` is no longer a dependency.
+>
+> See `ui/README.md` "What this covers" for the current 11-card list and
+> exactly what each drill-down shows.
 
 | Card | Type | Entity | Notes |
 |---|---|---|---|
@@ -92,22 +113,25 @@ read of a card already above it:
 
 This is exactly what the preview mockup's top KPI row shows.
 
-## 5. Navigation
+## 5. Navigation — implemented, 2026-09-05, not what this section originally described
 
-This section describes what an **OVP app** would give for free — every
-card's "See all" auto-opening the entity's own List Report → Object Page,
-generated from the `@UI` annotations already on each consumption CDS view.
+This section originally described what an **OVP app** would give for
+free — every card's "See all" auto-opening the entity's own List Report →
+Object Page, generated from the `@UI` annotations already on each
+consumption CDS view. That's still not what's built.
 
-**Not implemented in the actual `/ui/controltower` build.** The freestyle
-app (§ update box above) has no navigation wired up yet — it's tiles,
-charts, and tables only, no "See all" / drill-down. Freestyle doesn't get
-this for free the way OVP does; it needs to be hand-built per card (a
-`press` handler opening a List Report app, or a second view). Not done in
-this round — flagging it here rather than let the gap go unnoticed.
-`DataQualityIssue`'s `EmployeeID`, `SecurityUser`'s `Username`,
-`TransportRequestSet`'s `TransportRequest`, etc. are all already keys with
-`@UI.selectionField`, so a future Fiori Elements List Report app per entity
-is still straightforward to add — the CDS side needs no further work for it.
+**What actually shipped instead**: every card in `/ui/controltower` is
+clickable — a `sap.m.Dialog` opens showing that card's own detail list
+(built from data already loaded, not a second navigated app or a Fiori
+Elements List Report). This was **not** carried over from Employee-360 —
+checked directly, Employee-360's own dashboard has no navigation either.
+It's a new, standard-SAPUI5 mechanism, built for this round. The
+`@UI.selectionField`/key annotations already on every consumption view
+(`DataQualityIssue.EmployeeID`, `SecurityUser.Username`,
+`TransportRequestSet.TransportRequest`, etc.) still mean a future Fiori
+Elements List Report per entity is straightforward to add later if a
+proper full-page drill-down (not just a dialog) is ever wanted — the CDS
+side needs no further work for that either way.
 
 ## 6. Launchpad tile
 

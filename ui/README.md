@@ -1,23 +1,32 @@
 # Fiori app — deploy without knowing Fiori
 
-One app, freestyle SAPUI5 (hand-written) — the same pattern as Employee-360's
-own `dashboard` app: KPI tiles + donut charts + tables, reading the live
-OData V4 service. Talks to the **existing** service `ZTWR_UI_SRVD` — no
-backend change.
+One app, freestyle SAPUI5 (hand-written), reading the live OData V4 service.
+Talks to the **existing** service `ZTWR_UI_SRVD` — no backend change.
 
-> **First deploy attempted 2026-09-05 — two tooling issues found and fixed**
-> (see Troubleshooting below). Not yet re-deployed/visually verified since.
-> Written the same way the ABAP layer was: following a proven pattern (this
-> repo copies Employee-360's dashboard app structure line-for-line where the
-> shape is the same), but genuinely untested until it renders. Treat every
-> deploy like the ABAP stages — report back whatever you see, including a
-> blank/broken render, and it gets fixed the same way T1–T4 were: logged,
-> diagnosed, corrected, no guessing.
+> **Rebuilt 2026-09-05 around a technical-manager use case, per client
+> review of a click-through mockup** (approved before any code changed —
+> same discipline as any consequential build step in this repo). The page
+> is now a compact grid of uniform, chart-only cards — no tables on the
+> dashboard itself — each showing a number, a small donut or by-owner bar
+> chart, and a one-line plain-English finding. **Click any card to drill
+> into its detail list** (a `sap.m.Dialog`). See "What this covers" below
+> for the full card list and what changed structurally.
 >
-> **Reframed 2026-09-05 around a technical-manager use case** — see "What
-> this covers" below. The page now leads with an **Action Center** (what
-> needs attention, who to contact) instead of opening straight into
-> per-domain donuts.
+> **Correction, not a reuse**: this drill-down is **not** "the same pattern
+> Employee-360 already uses" — checked its code directly, and Employee-360's
+> own dashboard has no routing/dialog/navigation at all, same one-page
+> layout VS-Tower had before this round. The click-to-detail interaction
+> here is new, built fresh with a standard `sap.m.Dialog` — flagging that
+> plainly rather than let the wrong provenance stand.
+>
+> **Charts are hand-rolled SVG/CSS now, not `sap.viz.VizFrame`** — see the
+> design note at the top of `Dashboard.view.xml`. `sap.viz` is no longer a
+> dependency (removed from `manifest.json`, `ui5.yaml`, `index.html`).
+>
+> Not yet deployed/visually verified since this rebuild — same "first
+> render, report back whatever you see" discipline as every stage before
+> it. The **two tooling fixes from the previous deploy attempt still
+> apply** (see Troubleshooting) — nothing about this round touches them.
 
 ---
 
@@ -121,43 +130,60 @@ a flicker.
 
 ## Visual style
 
-KPI tiles that currently have something to attend to (data-quality issues,
-locked users, jobs needing attention — each bound to its own KPI value, not
-a single fixed set) get a soft pulse; the header carries a blinking "Live"
-dot while auto-refresh is on; cards get a thin gradient top accent (Horizon
-accent tokens) and lift slightly on hover. Chosen as the "bolder / more
-animated" option the client picked over a plainer "tasteful" pass and over
-full glow/neon/particle theming — deliberately short of the latter, per the
-same 2026-09-05 review. All motion respects `prefers-reduced-motion` — see
+Cards that currently have something to attend to (their own KPI > 0 — Data
+Quality, Security, both Background Jobs cards, both Transport cards,
+Workflow; never the 3 Workforce cards, which are context, not alerts) get a
+soft pulse; the header carries a blinking "Live" dot while auto-refresh is
+on; every card gets a thin gradient top accent (Horizon accent tokens) and
+lifts slightly on hover. All motion respects `prefers-reduced-motion` — see
 `css/style.css`.
 
 ## What this covers, and what it doesn't yet
 
-**Leads with the Action Center** (2026-09-05, technical-manager framing) —
-one table, worst item first, pulling from every domain below: Data Quality
-issue, locked user, job needing attention, open transport, in-flight
-workflow item — each row with a **Contact** column (who to loop in: the
-job's `SDLUNAME`/scheduler, the transport's `AS4USER`/owner, or a fixed team
-name for Security/Data Quality where there's no per-record owner in
-standard tables). Below it, all 6 stages/refinements as before: Data
-Quality, Security, Background Job Health (now with a Scheduled-By column),
-Transport (by status, by type, **and now by Owner** — open vs. released
-count per developer/consultant ID), Workforce (headcount by company, by
-employee group, payroll areas), and Workflow Item Overview (raw type/status
-counts — not yet the mock-up's Pending/Escalated/Overdue semantics, same
-caveat as the CDS side, `00_context_and_decisions.md` §8).
+**11 uniform, chart-only cards** in two rows — "Needs Attention" then
+"Workforce Context" — each with a number, a compact donut or by-owner bar
+chart with its legend/values directly beside it, and a one-line finding
+computed from the live data (e.g. "Missing Bank details is the largest
+group - 18 of 42 (43%)"). **Click any card to open its full detail list**
+in a dialog — that's where every table now lives; there are no tables on
+the dashboard page itself.
 
-"Recent Transport Requests" now shows **only queued ones** (Modifiable or
-Released-not-yet-imported) — filtered at the OData source, not client-side
-— per the client's ask not to show requests already moved out of the
-landscape.
+| Card | Chart | Drill-down shows |
+|---|---|---|
+| Action Center | Bar, by domain | Every item across all 5 domains below, worst first, each with a **Contact** |
+| Data Quality | Donut, by category | Recent issues: Employee / Check / Field / Severity |
+| Security | Donut, locked users by type | Locked usernames + type |
+| Background Jobs (Health) | Donut, by status | Job / Status / **Scheduled By** (`TBTCO-SDLUNAME`, pending activation) |
+| Background Jobs by Owner | Bar, jobs per scheduler | Same list, sorted by owner |
+| Transport (Status) | Donut, D/R only ("still in the landscape") | Queued requests: Request / Status / Owner |
+| Transport by Owner | Bar, open vs. released per ID | Same list, sorted by owner — the pattern the client asked to see repeated everywhere it genuinely applies |
+| Workflow | Donut, by status | In-flight items (excludes Completed/Cancelled) |
+| Headcount by Company | Donut | Company code breakdown |
+| Headcount by Employee Group | Donut | Group breakdown |
+| Payroll Areas | Donut | Area breakdown |
 
-Not on this dashboard: Alerts (planned as a KPI-strip composition over
-these same cards — the 4 tiles at the top already do this for Data
-Quality/Security/Jobs/Transport; extend the same way for any more), a real
-"Contact" for Workflow items (needs `SWWUSERWI`, not built), and anything
-from `docs/00_context_and_decisions.md` §7's "not built" table — there's no
-data behind those yet, so no card was added for them.
+**Contact is only shown where the data actually has an owner.** Transport
+(`AS4USER`) and Background Jobs (`SDLUNAME`) get a real name. Security and
+Data Quality get a fixed team name instead of an invented per-record
+owner — locked user accounts and HR master-data issues aren't assigned to
+a consultant ID in the source tables, so showing one there would be
+reporting data that doesn't exist. Workflow shows an honest "not yet
+mapped" placeholder (needs `SWWUSERWI`, not built).
+
+"Recent Transport Requests" — now "Transport (Status)" — shows **only
+queued ones** (Modifiable or Released-not-yet-imported), filtered at the
+OData source, not client-side, per the client's ask not to show requests
+already moved out of the landscape.
+
+**Two reads dropped as dead weight in this round**: `SecuritySummary` and
+`TransportTypeSummary` were only feeding cards this redesign doesn't have
+anymore — removed from the 5-second refresh cycle rather than left as
+wasted load.
+
+Not on this dashboard: Alerts as a separate concept (the Action Center
+already is that), and anything from `docs/00_context_and_decisions.md` §7's
+"not built" table — there's no data behind those yet, so no card was added
+for them.
 
 ## Troubleshooting
 
@@ -168,6 +194,6 @@ data behind those yet, so no card was added for them.
 | `deploy` "Loading archive has failed" | **hit on first deploy, fixed** — `package.json`'s `deploy` script had `--archive-path dist`, which doesn't match how `fiori deploy` builds/reads the archive on this tooling version. Fixed: removed the flag (`npm run build && fiori deploy --config ui5-deploy.yaml --yes`). Already fixed in this repo — only relevant if you've hand-edited the script. |
 | `deploy` "The application name must be 15 characters or shorter" | **hit on first deploy, fixed** — `ZTWR_CONTROL_TOWER` is 18 characters; BSP/SAPUI5 repository names cap at 15, same rule as any BSP app. Renamed to `ZCONTROL_TOWER` (14 chars) in `ui5-deploy.yaml` and everywhere it's referenced. If you rename it again, keep it ≤15 chars. |
 | "service not found" | `/IWFND/V4_ADMIN` → confirm `ZTWR_UI_SRVB_O4` is published in this client |
-| every donut showed "Title of Chart" and no numbers | **hit on first visual review, fixed** — no VizFrame had ever had its title/legend/data-label config set, so sap.viz fell back to its placeholder title and showed no value labels at all. Fixed in `Dashboard.controller.js` (`_configureCharts`): title off (the Card header already shows it), legend on, data labels on (`type: "value"` — the raw count, not a percentage). |
+| every donut showed "Title of Chart" and no numbers | **hit on first visual review, then superseded** — the original fix reconfigured `sap.viz.VizFrame`'s own title/legend/data-label properties. The 2026-09-05 rebuild replaces VizFrame entirely with hand-rolled SVG donuts (`Dashboard.controller.js` `_donutHtml`), which have no such placeholder to begin with — kept here as history, not expected to recur. |
 | a card/chart is blank, others work | that entity's `_read()` call likely failed — open the browser console, report the exact error, same as an ABAP activation error |
 | every card blank, page loads | check the OData service URL in `manifest.json` matches your actual service binding path (`/IWFND/V4_ADMIN` shows the real path) |

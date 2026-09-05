@@ -49,6 +49,18 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
 > went with it — `Owner` (`TBTCO-SDLUNAME`) added to `BackgroundJobHealth`
 > and a new `ZC_TWR_TRANSPORT_BY_OWNER` view — **pending activation**, see
 > `docs/BUILD_ISSUES_LOG.md` §1.
+>
+> **Full UI rebuild to match, 2026-09-05** — client asked to review the
+> design before any code changed; a click-through mockup was built and
+> approved, then `/ui/controltower` was rebuilt to match it: a compact grid
+> of 11 uniform, chart-only cards (no tables on the dashboard itself),
+> each with a number, a small chart with its values right beside it, a
+> one-line plain-English finding, and a click-to-open detail dialog. Charts
+> are hand-rolled SVG/CSS now, not `sap.viz.VizFrame` — `sap.viz` is no
+> longer a dependency. The "by owner" bar-chart pattern the client called
+> out on Transport is now also on Background Jobs, everywhere it genuinely
+> applies (not on Security/Data Quality, which have no per-record owner in
+> the source tables). See `ui/README.md` for the full card list.
 
 ---
 
@@ -57,8 +69,7 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
 ```
 /docs   scoping, decisions, architecture, build issues log
 /src    abapGit source — STARTING_FOLDER=/src/, FOLDER_LOGIC=PREFIX
-/ui     Fiori app (freestyle SAPUI5, mirrors Employee-360's ui/dashboard) —
-        see ui/README.md to deploy
+/ui     Fiori app (freestyle SAPUI5) — see ui/README.md to deploy
 ```
 
 ## Documents
