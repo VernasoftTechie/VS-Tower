@@ -194,6 +194,14 @@ cover most of this panel — _verify in system_.
 
 ## 13. Section J — Workflow Overview
 
+> **Partial build, 2026-09-05.** A conservative first cut
+> (`ZI_TWR_WORKITEM`/`WorkItemSet`/`WorkItemSummary`) reads `SWWWIHEAD` alone,
+> raw `WI_TYPE`/`WI_STAT` — confirmed clean. This is **not** the
+> Pending/In-Manager-Inbox/Escalated/Overdue/Completed breakdown below yet;
+> it's a generic item-count view until the real code meanings are known and
+> `SWWUSERWI` is tackled. See `00_context_and_decisions.md` §8,
+> `02_solution_architecture.md` §30.
+
 Classic SAP Business Workflow only (leave requests, PA actions, position
 changes). Flexible Workflow scenarios have limited released CDS — _verify_.
 SF / MDF workflows are CAP-track. The funnel shape is not a Fiori Elements chart.

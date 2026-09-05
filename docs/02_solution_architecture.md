@@ -157,7 +157,7 @@ Employee-360). Maps onto the Phase 1 / Phase 2 / CAP split in
 | 10 | ⏸ **Closed for this round** — action-type codes (New Joiners) / fragile pattern (org tree) / region mapping unconfirmed | Remaining KPI tiles, org tree/region donut, New Joiners | §5 (B), §16 (M), §17 (N) | None |
 | 11 | ⏸ **Closed for this round** — needs `T569V` field verification | Payroll run status/control record | §12 (I) | None |
 | 12 | ⏸ **Reframed** — no new CDS object; UI-layer composition over existing summaries | Alerts list (display-only) | §15 (L) | None needed |
-| — | Not started | Freestyle dashboard shell assembling everything built so far; Fiori Elements drill-downs per entity | §21 (R) | — |
+| — | 🔄 **In progress** — `/ui/controltower` built, not yet deployed/verified | Freestyle dashboard shell (`ui/controltower`) assembling everything built so far; Fiori Elements drill-downs per entity not yet built (the app currently has no navigation to a List Report/Object Page — see `docs/04_fiori_ui_design.md` §5) | §21 (R) | — |
 | 13 | ✅ **Done** — hit T4 (EDM name collision), fixed, confirmed clean | **Workflow Item Overview** — conservative first cut, `SWWWIHEAD` only, raw type/status. See §30. Reopened at client request; funnel visual and `SWWUSERWI`/manager-inbox still Phase 2. | §13 (J, partial) | None |
 | Phase 2 | Not started | Trends (needs a snapshot history mechanism — see the D9 open question in `00_context_and_decisions.md` §3), Workflow **funnel** + manager-inbox (`SWWUSERWI`), remote Transport Monitor (TMS RFC), cert/OAuth/RFC alerts, Performance panel | `01_feasibility_map.md` §25 | per section |
 | CAP track | Not started | CPI MPL, SF Recruiting/Performance, ECP payroll, SF workflow | `01_feasibility_map.md` §22 | separate repo |

@@ -82,12 +82,20 @@ This is exactly what the preview mockup's top KPI row shows.
 
 ## 5. Navigation
 
-Every list/analytical card's "See all" opens the entity's own **List
-Report** → **Object Page**, generated from the same `@UI` annotations
-already on each consumption CDS view — no extra annotation work needed
-beyond what's already shipped. `DataQualityIssue`'s `EmployeeID`,
-`SecurityUser`'s `Username`, `TransportRequestSet`'s `TransportRequest`, etc.
-are all already keys with `@UI.selectionField` for the filter bar.
+This section describes what an **OVP app** would give for free — every
+card's "See all" auto-opening the entity's own List Report → Object Page,
+generated from the `@UI` annotations already on each consumption CDS view.
+
+**Not implemented in the actual `/ui/controltower` build.** The freestyle
+app (§ update box above) has no navigation wired up yet — it's tiles,
+charts, and tables only, no "See all" / drill-down. Freestyle doesn't get
+this for free the way OVP does; it needs to be hand-built per card (a
+`press` handler opening a List Report app, or a second view). Not done in
+this round — flagging it here rather than let the gap go unnoticed.
+`DataQualityIssue`'s `EmployeeID`, `SecurityUser`'s `Username`,
+`TransportRequestSet`'s `TransportRequest`, etc. are all already keys with
+`@UI.selectionField`, so a future Fiori Elements List Report app per entity
+is still straightforward to add — the CDS side needs no further work for it.
 
 ## 6. Launchpad tile
 
@@ -97,7 +105,7 @@ are all already keys with `@UI.selectionField` for the filter bar.
 | Subtitle | SuccessFactors Integration Monitoring |
 | Icon | `sap-icon://home` or a control-tower-style custom icon, client's choice |
 | Semantic object / action | e.g. `ZTwrControlTower-display` |
-| Target | the OVP app, service `ZTWR_UI_SRVB_O4` |
+| Target | BSP application `ZTWR_CONTROL_TOWER` (`/ui/controltower`), consuming service `ZTWR_UI_SRVB_O4` |
 
 ## 7. What the Fiori developer does
 

@@ -233,7 +233,15 @@ specific "Pending / In Manager Inbox / Escalated / Overdue / Completed
 Today" semantics, which need the status/type codes' real meaning and the
 agent model, neither confirmed yet. `ZC_TWR_WORKITEM` /
 `ZC_TWR_WORKITEM_SUMMARY` (cross-tab by type × status) built; `ZTWR_UI_SRVD`
-extended: `WorkItemSet`, `WorkItemSummary`. Pushed, pull pending.
+extended: `WorkItemSet`, `WorkItemSummary`.
+
+**Confirmed clean** (after fixing T4 — the exposed set was originally named
+`WorkItem`, colliding with its own `WorkItemType` property; renamed to
+`WorkItemSet`). `SWWWIHEAD`'s field names all activated fine on the first
+try — the 3-field core is proven, same standing as `TBTCO`/`E070`/`USR02`
+now. Dates and `SWWUSERWI` remain the candidate next expansion, whenever
+that's wanted — no longer blocked by the original field-name uncertainty,
+just not built yet.
 
 Decision pending.
 

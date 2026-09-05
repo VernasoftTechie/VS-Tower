@@ -58,7 +58,7 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
 | [`docs/02_solution_architecture.md`](docs/02_solution_architecture.md) | Layering, naming, reuse strategy, rulebook deviations, stage roadmap |
 | [`docs/03_stage7_data_collection.md`](docs/03_stage7_data_collection.md) | **On hold** — kept for reference if Stage 7 is picked back up later |
 | [`docs/BUILD_ISSUES_LOG.md`](docs/BUILD_ISSUES_LOG.md) | **Read before touching any ABAP** — pre-flight checklist + every activation error hit + fix |
-| [`docs/04_fiori_ui_design.md`](docs/04_fiori_ui_design.md) | Fiori Elements Overview Page recommendation, card map, launchpad tile — for the Fiori developer |
+| [`docs/04_fiori_ui_design.md`](docs/04_fiori_ui_design.md) | Card map, launchpad tile, and the OVP → freestyle pivot — for the Fiori developer |
 
 ## What's in `/src`
 
@@ -79,9 +79,9 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
 | Consumption CDS | `ZC_TWR_HEADCOUNT` (donut by company/personnel area — no new interface view, reuses Stage 1's `ZI_TWR_EMP_BASIC`) | 5 ✅ |
 | Consumption CDS | `ZC_TWR_HEADCOUNT_BY_GROUP` (donut by employee group/subgroup — same reuse) | 5 *(refined)* ✅ |
 | Consumption CDS | `ZC_TWR_PAYROLL_AREA` (donut by payroll area — no new interface view, reuses Stage 1's `ZI_TWR_EMP_BASIC`) | 6 ✅ |
-| Interface CDS | `ZI_TWR_WORKITEM` (anchor, `SWWWIHEAD` — 3 fields only, conservative first cut) | 13 🔄 |
-| Consumption CDS | `ZC_TWR_WORKITEM` (list, raw type/status), `ZC_TWR_WORKITEM_SUMMARY` (donut, type × status cross-tab) | 13 🔄 |
-| Service | `ZTWR_UI_SRVD` (exposes all of the above) + `ZTWR_UI_SRVB_O4` (OData V4 – UI, published, shipped in the repo) | 1–6, 13 |
+| Interface CDS | `ZI_TWR_WORKITEM` (anchor, `SWWWIHEAD` — 3 fields only, conservative first cut) | 13 ✅ |
+| Consumption CDS | `ZC_TWR_WORKITEM` (exposed as `WorkItemSet` — renamed post-T4), `ZC_TWR_WORKITEM_SUMMARY` (donut, type × status cross-tab) | 13 ✅ |
+| Service | `ZTWR_UI_SRVD` (exposes all of the above, 16 entities) + `ZTWR_UI_SRVB_O4` (OData V4 – UI, published, shipped in the repo) | 1–6, 13 |
 
 **Retired:** `ZTWR_CFG_IFACE` (table) + `ZI_TWR_CFG_IFACE` + `ZC_TWR_CFG_IFACE`
 — removed from the repo 2026-09-04, client direction (no custom
@@ -94,30 +94,21 @@ Missing Cost Center, Missing Position (proxy for Invalid Position), Missing
 Bank/IBAN, and now Duplicate Employee. Missing Manager is still deferred —
 see `docs/02_solution_architecture.md` §26.
 
-## Pull & activate (Workflow Item Overview)
+## ABAP/CDS layer: nothing queued — fully confirmed clean
 
-`VS-Tower` is already linked to `ZABAP_UTIL`. This is the only thing
-currently queued.
-
-1. Pull — brings in `ZI_TWR_WORKITEM`, `ZC_TWR_WORKITEM`,
-   `ZC_TWR_WORKITEM_SUMMARY`, and the extended `ZTWR_UI_SRVD`.
-2. **Activate All Inactive** (twice if needed) — first read of `SWWWIHEAD`
-   in this repo. If `WI_ID`/`WI_TYPE`/`WI_STAT` themselves are wrong, check
-   the exact field name in SE11 before guessing a fix.
-3. Preview `WorkItemSet` and `WorkItemSummary` — note the real
-   `WorkItemType`/`Status` values that come back; that's what lets the next
-   round refine this into the mock-up's actual "Pending/Escalated/Overdue"
-   semantics.
-4. Report back clean/error, and the actual codes you see.
-
-## CDS layer: otherwise closed for this round
-
-Everything else above is pulled, activated, and confirmed clean by the
-client. The next round of work after Workflow is the Fiori UI/dashboard
-design — a separate decision on the client's own timing. If any other
+Every object in `/src` — Stages 1–6, all six refinements, and Stage 13
+(Workflow, including the T4 fix) — is pulled, activated, and confirmed
+clean by the client. There is nothing left to pull on the ABAP side. If any
 "closed for this round" item in `docs/02_solution_architecture.md` §8 gets
-unblocked (real interface data, an `SE11` field check, a D9 answer on
-Alerts/snapshot), that becomes its own stage at that point.
+unblocked later (real interface data, an `SE11` field check, a D9 answer on
+Alerts/snapshot), that becomes its own stage at that point — see
+`docs/00_context_and_decisions.md` §7–§8 for exactly what and why.
+
+## Current round: the Fiori app
+
+`/ui/controltower` is written but **not yet deployed or visually verified**
+— see `/ui/README.md` to deploy it. That's the only outstanding action in
+this repo right now.
 
 ## Post-pull (not in the repo)
 
@@ -129,6 +120,7 @@ Alerts/snapshot), that becomes its own stage at that point.
 
 See `docs/02_solution_architecture.md` §8 for the current plan, including the
 Stage 6 retirement/replacement, the Stage 3 refinement (§24), the Stage 1
-refinement (§26), the Stage 4/5 refinements (§28), and why Stage 7 is on
-hold. Each stage is one abapGit pull, deployed and verified before the next
-stage starts.
+refinement (§26), the Stage 4/5 refinements (§28), the Workflow Item
+Overview (§30), and why Stage 7 is on hold. Each stage was one abapGit pull,
+deployed and verified before the next stage started — the ABAP side of that
+cycle is now finished; the same discipline continues in `/ui`.
