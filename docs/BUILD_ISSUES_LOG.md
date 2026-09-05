@@ -145,6 +145,14 @@ sample rows with **no runtime error**, so unlike `USTYP` it does **not**
 carry a blocking conversion exit — real empty data, not a T1-style symptom.
 No further action on `CLASS`.
 
+**Stage 3 refinement result: clean.** `BackgroundJobHealth` (self-join +
+`Status <> 'F'` filter) and `BackgroundJobHistory` (renamed, unchanged CDS)
+both pulled, activated, and verified clean — no activation errors on the
+self-join, the newest SQL construct in this repo. Confirmed working
+end-to-end by the client. This is now the second proven "aggregate helper +
+self-join" pattern (after the summary views), safe to reuse for the next
+deferred item that needs the same shape (duplicate-employee detection).
+
 **Stages 3–5 result: clean, all three.** Pulled and activated together after
 the client's VPN issue cleared. `BackgroundJob`/`BackgroundJobSummary`,
 `TransportRequestSet`/`TransportSummary`, `HeadcountOverview` all previewed

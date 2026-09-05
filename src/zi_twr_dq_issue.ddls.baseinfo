@@ -3,7 +3,8 @@
     "FROM": [
       "ZI_TWR_EMP_BANK",
       "ZI_TWR_EMP_BASIC",
-      "ZI_TWR_EMP_CONTACT"
+      "ZI_TWR_EMP_CONTACT",
+      "ZI_TWR_EMP_DUP_KEY"
     ]
   }
 }

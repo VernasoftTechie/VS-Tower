@@ -19,14 +19,14 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
 - Built to the **Vernasoft ABAP & RAP Engineering Rulebook v1.0**.
 
 > **Build status:** Stages 1–6 all pulled, activated, and verified clean
-> (Stage 2 — T1, conversion exit; Stage 3 — T2, blank date; Stage 6 —
-> T3, labels; all fixed, see `docs/BUILD_ISSUES_LOG.md`). Stage 6's original
-> design (interface catalog table) was retired on client direction (standard
-> tables only, no customization — D9) and replaced with Payroll Area
-> Overview. **Stage 3 just got a refinement — `BackgroundJobHealth`** — one
-> row per job name, latest run only, pending/error only (client feedback:
-> the old all-history view was too noisy to be useful). Pushed, pull
-> pending. **Stage 7 (Integration Monitoring) is on hold**, not
+> (T1/T2/T3 fixed along the way, see `docs/BUILD_ISSUES_LOG.md`). Stage 6's
+> original design (interface catalog table) was retired on client direction
+> (standard tables only, no customization — D9) and replaced with Payroll
+> Area Overview. **Stage 3's refinement (`BackgroundJobHealth`) is confirmed
+> clean** — one row per job name, latest run only, pending/error only.
+> **Stage 1 just got the same treatment — Duplicate Employee added**, now
+> that the "aggregate + self-join" pattern is proven twice over. Pushed,
+> pull pending. **Stage 7 (Integration Monitoring) is on hold**, not
 > blocked-and-waiting — see `docs/03_stage7_data_collection.md`. Read
 > `docs/BUILD_ISSUES_LOG.md` §0 before touching any CDS in this repo — every
 > activation error goes there before the next stage is written.
@@ -54,14 +54,15 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
 
 | Area | Objects | Stage |
 |---|---|---|
-| Interface CDS | `ZI_TWR_EMP_BASIC` (anchor — includes `PayrollArea`), `ZI_TWR_EMP_CONTACT`, `ZI_TWR_EMP_BANK`, `ZI_TWR_DQ_ISSUE` (4-branch check union) | 1 ✅ |
+| Interface CDS | `ZI_TWR_EMP_BASIC` (anchor — includes `PayrollArea`), `ZI_TWR_EMP_CONTACT`, `ZI_TWR_EMP_BANK`, `ZI_TWR_DQ_ISSUE` (5-branch check union) | 1 ✅ |
 | Consumption CDS | `ZC_TWR_DQ_ISSUE` (list), `ZC_TWR_DQ_SUMMARY` (donut by category) | 1 ✅ |
+| Interface CDS | `ZI_TWR_EMP_DUP_KEY` (helper — name+DOB match count) | 1 *(refined)* 🔄 |
 | Interface CDS | `ZI_TWR_SEC_USER` (anchor, `USR02`) | 2 ✅ |
 | Consumption CDS | `ZC_TWR_SEC_USER` (list), `ZC_TWR_SEC_SUMMARY` (donut by lock status) | 2 ✅ |
 | Interface CDS | `ZI_TWR_BGJOB` (anchor, `TBTCO` — date/time fields are text, see T2) | 3 ✅ |
 | Consumption CDS | `ZC_TWR_BGJOB` (exposed as `BackgroundJobHistory`), `ZC_TWR_BGJOB_SUMMARY` (`BackgroundJobHistorySummary`) — full run history, unchanged | 3 ✅ |
-| Interface CDS | `ZI_TWR_BGJOB_LATEST` (helper — `MAX(JobCount)` per job name), `ZI_TWR_BGJOB_HEALTH` (self-join, pending/error only) | 3 *(refined)* 🔄 |
-| Consumption CDS | `ZC_TWR_BGJOB_HEALTH` (`BackgroundJobHealth` — **the primary Background Jobs tile**), `ZC_TWR_BGJOB_HEALTH_SUMMARY` | 3 *(refined)* 🔄 |
+| Interface CDS | `ZI_TWR_BGJOB_LATEST` (helper — `MAX(JobCount)` per job name), `ZI_TWR_BGJOB_HEALTH` (self-join, pending/error only) | 3 *(refined)* ✅ |
+| Consumption CDS | `ZC_TWR_BGJOB_HEALTH` (`BackgroundJobHealth` — **the primary Background Jobs tile**), `ZC_TWR_BGJOB_HEALTH_SUMMARY` | 3 *(refined)* ✅ |
 | Interface CDS | `ZI_TWR_TRANSPORT` (anchor, `E070`, local system) | 4 ✅ |
 | Consumption CDS | `ZC_TWR_TRANSPORT` (list), `ZC_TWR_TRANSPORT_SUMMARY` (donut by status) | 4 ✅ |
 | Consumption CDS | `ZC_TWR_HEADCOUNT` (donut by company/personnel area — no new interface view, reuses Stage 1's `ZI_TWR_EMP_BASIC`) | 5 ✅ |
@@ -76,32 +77,25 @@ system, a pull should have already offered to delete them.
 No RAP behavior definition, no custom DDIC tables, no DCL — every object is a
 plain `define view entity … as select from`. Stage 1 checks: Missing Email,
 Missing Cost Center, Missing Position (proxy for Invalid Position), Missing
-Bank/IBAN. Duplicate Employee and Missing Manager are deferred — see
-`docs/02_solution_architecture.md` §8.
+Bank/IBAN, and now Duplicate Employee. Missing Manager is still deferred —
+see `docs/02_solution_architecture.md` §26.
 
-## Pull & activate (Stage 3 refinement — Background Job Health)
+## Pull & activate (Duplicate Employee)
 
 `VS-Tower` is already linked to `ZABAP_UTIL`.
 
-1. Pull the repo — brings in `ZI_TWR_BGJOB_LATEST` (helper),
-   `ZI_TWR_BGJOB_HEALTH` (self-join), `ZC_TWR_BGJOB_HEALTH`,
-   `ZC_TWR_BGJOB_HEALTH_SUMMARY`, and the extended/renamed `ZTWR_UI_SRVD`.
-   `ZI_TWR_BGJOB`/`ZC_TWR_BGJOB`/`ZC_TWR_BGJOB_SUMMARY` themselves are
-   **unchanged** — only their exposed OData entity-set names changed
-   (`BackgroundJob` → `BackgroundJobHistory`, `BackgroundJobSummary` →
-   `BackgroundJobHistorySummary`).
+1. Pull the repo — brings in `ZI_TWR_EMP_DUP_KEY` (helper) and the extended
+   `ZI_TWR_DQ_ISSUE` (now 5 UNION branches). No consumption-view or service
+   changes needed — `ZC_TWR_DQ_ISSUE`/`ZC_TWR_DQ_SUMMARY` pick up the new
+   check automatically.
 2. Package → **Activate All Inactive ABAP Development Objects** (run twice if
-   the first pass leaves cross-references inactive). This pull's newest
-   construct is the self-join in `ZI_TWR_BGJOB_HEALTH` — treat any error
-   there as high-priority to report verbatim.
-3. Preview **`BackgroundJobHealth`** — should show far fewer rows than
-   before: one per job name, its latest run only, none with status
-   "finished."
-4. Preview `BackgroundJobHistory` — should look exactly as `BackgroundJob`
-   did before (same CDS, only the exposed name changed) — confirms the
-   rename alone didn't disturb anything.
-5. Report back clean/error, and roughly how many rows `BackgroundJobHealth`
-   returns vs. `BackgroundJobHistory`.
+   the first pass leaves cross-references inactive).
+3. Preview `DataQualityIssue` — should now include rows with
+   `CheckID = DUPLICATE_EMPLOYEE`, `Category = MASTER_DATA`. Total row count
+   should be at or above the previous 40,529 (this only adds rows).
+4. Preview `DataQualitySummary` — should show a new `MASTER_DATA` slice.
+5. Report back clean/error, and roughly how many duplicate-employee rows
+   appear.
 
 ## Post-pull (not in the repo)
 
@@ -112,6 +106,6 @@ Bank/IBAN. Duplicate Employee and Missing Manager are deferred — see
 ## Stage roadmap
 
 See `docs/02_solution_architecture.md` §8 for the current plan, including the
-Stage 6 retirement/replacement, the Stage 3 refinement (§24), and why Stage 7
-is on hold. Each stage is one abapGit pull, deployed and verified before the
-next stage starts.
+Stage 6 retirement/replacement, the Stage 3 refinement (§24), the Stage 1
+refinement (§26), and why Stage 7 is on hold. Each stage is one abapGit pull,
+deployed and verified before the next stage starts.

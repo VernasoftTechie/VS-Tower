@@ -115,14 +115,24 @@ manual data entry — adds `PayrollArea` (`ABKRS`) to the already-proven
 `ZC_TWR_HEADCOUNT`. Every payroll area actually in use on `PA0001` shows up
 automatically.
 
-**Stage 3 refined: Background Job Health.** Client feedback — a raw dump of
-every job step (mostly successful, mostly repeats) isn't a monitor, it's
-noise for an administrator. New `BackgroundJobHealth` shows one row per job
-**name**, its most recent run only, and only when that run isn't a clean
-finish (self-join to a `MAX(JobCount)` helper view, not a window function —
-see `02_solution_architecture.md` §24 for why). Old `BackgroundJob` renamed
-`BackgroundJobHistory` and kept as the unchanged drill-down entity. Pushed,
-pull pending.
+**Stage 3 refined: Background Job Health — done, confirmed clean.** Client
+feedback — a raw dump of every job step (mostly successful, mostly repeats)
+isn't a monitor, it's noise for an administrator. New `BackgroundJobHealth`
+shows one row per job **name**, its most recent run only, and only when that
+run isn't a clean finish (self-join to a `MAX(JobCount)` helper view, not a
+window function — see `02_solution_architecture.md` §24 for why). Old
+`BackgroundJob` renamed `BackgroundJobHistory` and kept as the unchanged
+drill-down entity. Pulled, activated, verified clean — no errors on the
+self-join.
+
+**Stage 1 refined: Duplicate Employee — pushed, pull pending.** The
+"aggregate helper + self-join" pattern proven by the Job Health work above
+de-risked the one Stage 1 check that had been deferred for exactly that
+reason. `ZI_TWR_EMP_DUP_KEY` (helper, `COUNT(*)` by name+DOB) + a 5th UNION
+branch in `ZI_TWR_DQ_ISSUE` (self-join, `WHERE MatchCount > 1`). No changes
+to the consumption layer — it picks up the new check automatically. Missing
+Manager remains deferred (different, unrelated blocker — HRP1001 relationship
+ID unconfirmed).
 
 ---
 
@@ -142,3 +152,5 @@ pull pending.
 | 2026-09-04 | D9 added; interface catalog retired; Stage 6 replaced with Payroll Area Overview (see the two entries above this one). |
 | 2026-09-04 | **Stage 3 refined: Background Job Health.** Client feedback that a raw job-step dump isn't a usable monitor. `ZI_TWR_BGJOB_LATEST` (helper, `MAX(JobCount)` per `JobName`) + `ZI_TWR_BGJOB_HEALTH` (self-join, filtered `Status <> 'F'`) + `ZC_TWR_BGJOB_HEALTH`/`_SUMMARY` built and pushed. `BackgroundJob`/`BackgroundJobSummary` renamed to `BackgroundJobHistory`/`BackgroundJobHistorySummary` in the service (same underlying CDS, unchanged). Pull pending. |
 | 2026-09-04 | **D9 added; interface catalog retired.** Client direction: standard tables only, no customization for now. `ZTWR_CFG_IFACE` + its CDS layer removed from the repo; Stage 7 (Integration Monitoring) moved from "blocked" to **on hold**, not chased with a lighter workaround. `03_stage7_data_collection.md` kept, marked on hold. Replaced Stage 6 with **Payroll Area Overview** — `PayrollArea` (`ABKRS`) added to `ZI_TWR_EMP_BASIC`, new `ZC_TWR_PAYROLL_AREA` aggregation, zero new custom DDIC. Flagged an open question: does D9 also affect D5's snapshot table / a future alert store — not asked yet, not blocking today. |
+| 2026-09-05 | **Stage 3 refinement confirmed clean** — `BackgroundJobHealth` self-join activated with zero errors, client verified end-to-end. This is the second proven "aggregate helper + self-join" instance in this repo. |
+| 2026-09-05 | **Stage 1 refined: Duplicate Employee.** With the self-join pattern now proven twice, the one deferred Stage 1 check that needed it is no longer a blind guess. `ZI_TWR_EMP_DUP_KEY` (helper) + a 5th `ZI_TWR_DQ_ISSUE` UNION branch built and pushed — no consumption-layer changes needed. Missing Manager remains deferred (unrelated HRP1001 blocker). |

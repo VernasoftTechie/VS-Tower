@@ -141,9 +141,10 @@ Employee-360). Maps onto the Phase 1 / Phase 2 / CAP split in
 | Stage | Status | Delivers | Feasibility map section | New custom DDIC? |
 |---|---|---|---|---|
 | **1** | ✅ **Done** — pulled, activated clean, preview verified with real data (40,529 issues) | Data Quality Overview — Missing Email / Cost Center / Position / Bank | §10 (G) | None |
+| **1** *(refined)* | 🔄 Pushed, pull pending | **Duplicate Employee** added (5th check) — aggregate helper + self-join, proven pattern from Stage 3. See §26. Missing Manager still deferred (unrelated blocker). | §10 (G) | None |
 | **2** | ✅ **Done** — activation hit T1 (`USTYP` conversion exit), fixed, preview verified (4,860 users) | Security Monitor — locked users, password age, technical users | §19 (P) | None |
 | **3** | ✅ **Done** — T2 fixed (3rd attempt: blank date exposed as text, not `Edm.Date`) | Background Jobs Monitor | §14 (K) | None |
-| **3** *(refined)* | 🔄 Pushed, pull pending | **`BackgroundJobHealth`** — one row per job name (latest run only), pending/error only. See §24. `BackgroundJobHistory` (renamed from the old `BackgroundJob`) stays as the drill-down/full-history entity, unchanged. | §14 (K) | None |
+| **3** *(refined)* | ✅ **Done** — self-join activated clean, confirmed by client | **`BackgroundJobHealth`** — one row per job name (latest run only), pending/error only. See §24. `BackgroundJobHistory` (renamed from the old `BackgroundJob`) stays as the drill-down/full-history entity, unchanged. | §14 (K) | None |
 | **4** | ✅ **Done** | **Reordered** — Transport Monitor, local system only (was: Foundation config tables) | §20 (Q) | None |
 | **5** | ✅ **Done** | **Reordered** — Headcount Overview by Company Code × Personnel Area (was: Integration Monitoring) | §16 (M, partial) | None |
 | ~~6~~ | ❌ **Retired 2026-09-04 (D9)** | ~~Foundation, narrowed — interface catalog~~ — client direction: no custom config/catalog tables. Removed from the repo. | — | — |
@@ -475,3 +476,47 @@ filter can layer on top once that data exists, without touching this design.
    rename didn't disturb the working view.
 5. Report back clean/error, and roughly how many rows `BackgroundJobHealth`
    returns vs. `BackgroundJobHistory`.
+
+**Result: clean, confirmed by the client.** No activation errors on the
+self-join — the "aggregate helper + self-join" pattern is now proven twice
+over (summary views' `GROUP BY`/`COUNT`, and this stage's `MAX` + join), safe
+to reuse for the next deferred item needing the same shape.
+
+## 26. Stage 1 refinement — Duplicate Employee
+
+Deferred at Stage 1 (§8) because it needed `GROUP BY`/aggregation — the same
+risk category Employee-360's log names as its single biggest source of
+activation errors. With the pattern now proven end-to-end (§25), it's no
+longer a blind guess.
+
+| Object | Type | Purpose |
+|---|---|---|
+| `ZI_TWR_EMP_DUP_KEY` | Interface CDS (helper) | `(LastName, FirstName, DateOfBirth)` → `COUNT(*)`. Not exposed to the service — same shape as `ZI_TWR_BGJOB_LATEST`. |
+| `ZI_TWR_DQ_ISSUE` (extended) | 5th UNION branch | Self-joins `ZI_TWR_EMP_BASIC` to the helper on the same three fields, `WHERE MatchCount > 1` — flags every employee who shares a name + date of birth with at least one other record. |
+
+`HAVING` is deliberately still not used (untested in this repo) — the `> 1`
+match filter is a plain `WHERE` on the joined result, the same proven
+construct as every other branch. Blank-name employees are excluded via the
+branch's own `WHERE` (`LastName`/`FirstName` not initial) rather than
+filtering inside the aggregate, for the same untested-`WHERE`-inside-a-
+`GROUP BY`-view reason noted in `ZI_TWR_EMP_DUP_KEY`'s own comment.
+
+No changes needed to `ZC_TWR_DQ_ISSUE` or `ZC_TWR_DQ_SUMMARY` — both are
+plain passthroughs over `ZI_TWR_DQ_ISSUE` and pick up the new `CheckID`/
+`Category` automatically.
+
+**Missing Manager stays deferred** — unrelated blocker (HRP1001 relationship
+ID unconfirmed on this client), not a technique problem.
+
+## 27. Pull & activate (Duplicate Employee)
+
+1. Pull — brings in `ZI_TWR_EMP_DUP_KEY` and the extended `ZI_TWR_DQ_ISSUE`
+   (now 5 branches). No consumption-view or service changes.
+2. **Activate All Inactive** (twice if needed).
+3. Preview `DataQualityIssue` — should now include rows with
+   `CheckID = DUPLICATE_EMPLOYEE`, `Category = MASTER_DATA`. Total row count
+   should be ≥ the previous 40,529 (strictly more, since this only adds
+   rows, never removes any).
+4. Preview `DataQualitySummary` — should show a new `MASTER_DATA` slice.
+5. Report back clean/error, and roughly how many duplicate-employee rows
+   appear.
