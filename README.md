@@ -18,21 +18,24 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
   operational note in `docs/02_solution_architecture.md` §3).
 - Built to the **Vernasoft ABAP & RAP Engineering Rulebook v1.0**.
 
-> **🏁 CDS layer closed, 2026-09-05.** Stages 1–6 plus four refinements
-> (Duplicate Employee, Background Job Health, Transport by Type, Headcount by
-> Group) are all pulled, activated, and confirmed clean (T1/T2/T3 fixed along
-> the way, see `docs/BUILD_ISSUES_LOG.md`). Everything that's safely
-> buildable from standard tables, with no new external information, is now
-> built. Everything still open is a **deliberate stop, not an oversight** —
-> full reasoning per item in `docs/00_context_and_decisions.md` §7: needs
+> **🏁 CDS layer closed, 2026-09-05 — Workflow reopened same day.** Stages 1–6
+> plus five refinements (Duplicate Employee, Background Job Health, Transport
+> by Type, Headcount by Group, and now Workflow Item Overview) are pulled,
+> activated, and confirmed clean, except Workflow which is pushed and
+> awaiting its first pull (T1/T2/T3 fixed along the way, see
+> `docs/BUILD_ISSUES_LOG.md`). Client asked specifically about Workflow after
+> the closure and confirmed `SWWWIHEAD`/`SWWUSERWI` are in force, so a
+> conservative first cut (raw type/status counts from `SWWWIHEAD` alone, no
+> dates, no `SWWUSERWI`) was built — see `docs/02_solution_architecture.md`
+> §30. Everything else still open is a **deliberate stop, not an oversight**
+> — full reasoning per item in `docs/00_context_and_decisions.md` §7: needs
 > real client data (Stage 7, New Joiners), needs an `SE11` field check
 > (Payroll status, Gateway stats), is a known-fragile pattern
 > (org hierarchy), needs a non-CDS object (cert expiry), is reframed as a
-> UI-layer concern (Alerts), or was always Phase 2 / the separate CAP track.
-> **Next: Fiori UI / dashboard-design**, a separate round on the client's own
-> timing — nothing more to build in CDS until then, or until one of the open
-> items gets unblocked. Read `docs/BUILD_ISSUES_LOG.md` §0 before touching
-> any CDS in this repo regardless.
+> UI-layer concern (Alerts), or was always Phase 2 / the separate CAP track
+> (Workflow's funnel visual and manager-inbox data included). Client has
+> also greenlit Fiori UI design — see `docs/04_fiori_ui_design.md`. Read
+> `docs/BUILD_ISSUES_LOG.md` §0 before touching any CDS in this repo.
 
 ---
 
@@ -73,7 +76,9 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
 | Consumption CDS | `ZC_TWR_HEADCOUNT` (donut by company/personnel area — no new interface view, reuses Stage 1's `ZI_TWR_EMP_BASIC`) | 5 ✅ |
 | Consumption CDS | `ZC_TWR_HEADCOUNT_BY_GROUP` (donut by employee group/subgroup — same reuse) | 5 *(refined)* ✅ |
 | Consumption CDS | `ZC_TWR_PAYROLL_AREA` (donut by payroll area — no new interface view, reuses Stage 1's `ZI_TWR_EMP_BASIC`) | 6 ✅ |
-| Service | `ZTWR_UI_SRVD` (exposes all of the above) + `ZTWR_UI_SRVB_O4` (OData V4 – UI, published, shipped in the repo) | 1–6 |
+| Interface CDS | `ZI_TWR_WORKITEM` (anchor, `SWWWIHEAD` — 3 fields only, conservative first cut) | 13 🔄 |
+| Consumption CDS | `ZC_TWR_WORKITEM` (list, raw type/status), `ZC_TWR_WORKITEM_SUMMARY` (donut, type × status cross-tab) | 13 🔄 |
+| Service | `ZTWR_UI_SRVD` (exposes all of the above) + `ZTWR_UI_SRVB_O4` (OData V4 – UI, published, shipped in the repo) | 1–6, 13 |
 
 **Retired:** `ZTWR_CFG_IFACE` (table) + `ZI_TWR_CFG_IFACE` + `ZC_TWR_CFG_IFACE`
 — removed from the repo 2026-09-04, client direction (no custom
@@ -86,15 +91,30 @@ Missing Cost Center, Missing Position (proxy for Invalid Position), Missing
 Bank/IBAN, and now Duplicate Employee. Missing Manager is still deferred —
 see `docs/02_solution_architecture.md` §26.
 
-## CDS layer: closed for this round
+## Pull & activate (Workflow Item Overview)
 
-Everything above is pulled, activated, and confirmed clean by the client.
-There is nothing further queued to pull. The next round of work is the Fiori
-UI/dashboard design — a separate decision on the client's own timing — not
-more CDS. If any of the "closed for this round" items in
-`docs/02_solution_architecture.md` §8 gets unblocked (real interface data,
-an `SE11` field check, a D9 answer on Alerts/snapshot), that becomes its own
-stage at that point.
+`VS-Tower` is already linked to `ZABAP_UTIL`. This is the only thing
+currently queued.
+
+1. Pull — brings in `ZI_TWR_WORKITEM`, `ZC_TWR_WORKITEM`,
+   `ZC_TWR_WORKITEM_SUMMARY`, and the extended `ZTWR_UI_SRVD`.
+2. **Activate All Inactive** (twice if needed) — first read of `SWWWIHEAD`
+   in this repo. If `WI_ID`/`WI_TYPE`/`WI_STAT` themselves are wrong, check
+   the exact field name in SE11 before guessing a fix.
+3. Preview `WorkItem` and `WorkItemSummary` — note the real
+   `WorkItemType`/`Status` values that come back; that's what lets the next
+   round refine this into the mock-up's actual "Pending/Escalated/Overdue"
+   semantics.
+4. Report back clean/error, and the actual codes you see.
+
+## CDS layer: otherwise closed for this round
+
+Everything else above is pulled, activated, and confirmed clean by the
+client. The next round of work after Workflow is the Fiori UI/dashboard
+design — a separate decision on the client's own timing. If any other
+"closed for this round" item in `docs/02_solution_architecture.md` §8 gets
+unblocked (real interface data, an `SE11` field check, a D9 answer on
+Alerts/snapshot), that becomes its own stage at that point.
 
 ## Post-pull (not in the repo)
 

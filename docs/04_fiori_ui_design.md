@@ -113,10 +113,23 @@ files once authored — see Employee-360's own note on that
 (`BUILD_ISSUES_LOG.md` C2: author them in ADT/BAS against a live system,
 not hand-written blind).
 
-## 8. Open item — Workflow Overview
+## 8. Workflow — data now available, funnel still not
 
-Not included above. See the chat discussion (2026-09-05): the dashboard's
-funnel *visual* was always Phase 2/UI, but the underlying *data*
-(`SWWWIHEAD`/`SWWUSERWI`) might be buildable sooner than that — carries
-meaningfully lower field-name confidence than what's shipped so far, closer
-to the `T569V` risk class than to `TBTCO`/`E070`. Decision pending.
+`ZI_TWR_WORKITEM`/`ZC_TWR_WORKITEM`/`ZC_TWR_WORKITEM_SUMMARY` were built
+after this doc was first written — a conservative first cut over `SWWWIHEAD`
+alone (`00_context_and_decisions.md` §8, `02_solution_architecture.md` §30).
+For the OVP card map:
+
+| Card | Type | Entity | Notes |
+|---|---|---|---|
+| Work Items by Type × Status | Analytical (donut) | `WorkItemSummary` | dimensions `WorkItemType`/`Status` (raw codes — see below), measure `ItemCount` |
+| Recent Work Items | List | `WorkItem` | no criticality yet — status-code meanings not confirmed |
+
+**Not the funnel from the original mock-up.** `WorkItemType`/`Status` are
+exposed as **raw codes**, not mapped to "Pending / In Manager Inbox /
+Escalated / Overdue / Completed" — that mapping needs the real code meanings
+(seen once this is previewed) and `SWWUSERWI` (manager-inbox assignment,
+not built yet). Until then, present this as a generic "Workflow Items"
+card, not as the funnel — a funnel chart isn't a standard Fiori Elements
+type anyway, so it stays a freestyle-only visual regardless of when the
+underlying data is ready.

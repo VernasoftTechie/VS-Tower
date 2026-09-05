@@ -158,13 +158,15 @@ Employee-360). Maps onto the Phase 1 / Phase 2 / CAP split in
 | 11 | ⏸ **Closed for this round** — needs `T569V` field verification | Payroll run status/control record | §12 (I) | None |
 | 12 | ⏸ **Reframed** — no new CDS object; UI-layer composition over existing summaries | Alerts list (display-only) | §15 (L) | None needed |
 | — | Not started | Freestyle dashboard shell assembling everything built so far; Fiori Elements drill-downs per entity | §21 (R) | — |
-| Phase 2 | Not started | Trends (needs a snapshot history mechanism — see the D9 open question in `00_context_and_decisions.md` §3), Workflow + funnel, remote Transport Monitor (TMS RFC), cert/OAuth/RFC alerts, Performance panel | `01_feasibility_map.md` §25 | per section |
+| 13 | 🔄 Pushed, pull pending | **Workflow Item Overview** — conservative first cut, `SWWWIHEAD` only, raw type/status. See §30. Reopened at client request; funnel visual and `SWWUSERWI`/manager-inbox still Phase 2. | §13 (J, partial) | None |
+| Phase 2 | Not started | Trends (needs a snapshot history mechanism — see the D9 open question in `00_context_and_decisions.md` §3), Workflow **funnel** + manager-inbox (`SWWUSERWI`), remote Transport Monitor (TMS RFC), cert/OAuth/RFC alerts, Performance panel | `01_feasibility_map.md` §25 | per section |
 | CAP track | Not started | CPI MPL, SF Recruiting/Performance, ECP payroll, SF workflow | `01_feasibility_map.md` §22 | separate repo |
 
-> **CDS layer closed for this round, 2026-09-05** — client direction, deferring
-> Fiori UI/dashboard design to a later, separate round. Every "closed for this
-> round" row above is a deliberate stop, not an oversight — full reasoning and
-> what would unblock each one: `00_context_and_decisions.md` §7.
+> **CDS layer closed 2026-09-05** (§7), **Workflow reopened same day** at
+> client request once the tables' active use was confirmed (§30) — everything
+> else marked "closed for this round" is still a deliberate stop, not an
+> oversight. Full reasoning and what would unblock each one:
+> `00_context_and_decisions.md` §7–§8.
 
 ### Why Stages 4–5 were reordered
 
@@ -561,3 +563,48 @@ now. `ZTWR_UI_SRVD` extended: `TransportTypeSummary`, `HeadcountByGroup`.
 4. Re-check `DataQualityIssue`/`HeadcountOverview`/`PayrollAreaOverview` are
    still fine — `ZI_TWR_EMP_BASIC` changed, and all three read it.
 5. Report back clean/error for all of the above.
+
+## 30. Workflow Item Overview — conservative first cut
+
+Reopened after the CDS-layer closure (§7) at the client's specific request.
+Client confirmed `SWWWIHEAD`/`SWWUSERWI` are in force on this system — real
+signal, but it confirms the tables are *used*, not the exact field list.
+Treated this table class with more caution than `TBTCO`/`E070` got: fewer
+fields, no dates, no `SWWUSERWI` at all in round one. Full reasoning in
+`00_context_and_decisions.md` §8.
+
+| Object | Type | Purpose |
+|---|---|---|
+| `ZI_TWR_WORKITEM` | Interface CDS | Anchor over `SWWWIHEAD` — `WorkItemId`, `WorkItemType`, `Status` only. Type/status cast defensively (rule #20) and exposed **raw**, not filtered to guessed values — same discipline as `TransportType`/`RequestStatus`. |
+| `ZC_TWR_WORKITEM` | Consumption CDS | List view. No criticality (status-code meanings not confirmed yet). |
+| `ZC_TWR_WORKITEM_SUMMARY` | Consumption CDS | Cross-tab by `WorkItemType` × `Status`, donut on `Status`. |
+| `ZTWR_UI_SRVD` (extended) | Service Definition | `WorkItem`, `WorkItemSummary` |
+
+**Not included, even as a stretch:** `WI_CD`/`WI_CT` (created date/time —
+field names not independently confirmed, one more way this could fail to
+activate for no real gain in a first cut) and anything from `SWWUSERWI`
+(the "In Manager Inbox" data point — needs the agent-assignment model,
+genuinely more complex than a foreign key, deliberately held for a later,
+better-informed round).
+
+**What this does *not* give you yet:** the mock-up's specific "Pending
+Approvals / In Manager Inbox / Escalated / Overdue / Completed Today"
+breakdown — that needs knowing what the real `WI_TYPE`/`WI_STAT` codes on
+this system actually mean. What it does give: real counts, grouped by
+whatever codes exist, which is exactly what's needed to *learn* those
+meanings before refining this into the mock-up's specific semantics — the
+same "expose raw, refine once proven" path `TransportType`/`BackgroundJob`
+already took.
+
+## 31. Pull & activate (Workflow Item Overview)
+
+1. Pull — brings in `ZI_TWR_WORKITEM`, `ZC_TWR_WORKITEM`,
+   `ZC_TWR_WORKITEM_SUMMARY`, and the extended `ZTWR_UI_SRVD`.
+2. **Activate All Inactive** (twice if needed) — this is the first read of
+   `SWWWIHEAD` in this repo; treat any error as high-priority to report
+   verbatim, and don't guess a fix blind — check the exact field name in
+   SE11 first if `WI_ID`/`WI_TYPE`/`WI_STAT` themselves are what's wrong.
+3. Preview `WorkItem` and `WorkItemSummary` — note what real `WorkItemType`/
+   `Status` values come back; that tells us how to refine this into the
+   mock-up's specific semantics next round.
+4. Report back clean/error, and the actual type/status codes you see.

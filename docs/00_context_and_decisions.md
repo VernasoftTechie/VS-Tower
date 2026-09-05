@@ -215,19 +215,25 @@ foreign key. That puts this closer to the `T569V` risk class — attemptable,
 but more likely than not to need a fix-forward round or two, the same as
 T1–T3 did.
 
-**Options, not yet decided:**
+**Decided:** client confirmed both tables are in force on this system (not
+just theoretically present) — doesn't verify individual field names, but
+enough to proceed with **Option 1**, the conservative first cut, rather than
+wait for an SE11 check.
 
-1. **Attempt a conservative first cut now** — read `SWWWIHEAD` alone (skip
-   `SWWUSERWI`/"manager inbox" entirely, the more uncertain piece), expose
-   `WI_TYPE`/`WI_STAT` **raw** and group by whatever values actually come
-   back — the same "don't guess the meaning, just expose the code"
-   discipline that worked for `TransportType`/`RequestStatus`. Gives a
-   generic **Workflow Item Overview** (counts by raw type/status, a recent-
-   items list) — not the mock-up's specific "Pending / In Manager Inbox /
-   Escalated / Overdue / Completed Today" semantics, since those require
-   knowing what the status/type codes actually mean and the agent model.
-2. **Hold, same as `T569V`** — a quick SE11 check on both tables first,
-   then build it with the same confidence as everything already shipped.
+**What shipped:** `ZI_TWR_WORKITEM` reads `SWWWIHEAD` alone —
+`WI_ID`/`WI_TYPE`/`WI_STAT` only, the three fields with the highest
+confidence. `SWWUSERWI`/"manager inbox" untouched. Dates (`WI_CD`/`WI_CT` —
+names not confirmed) deliberately left out of this cut too, trimming scope
+further than usual given the lower confidence on this table class — add
+them once this 3-field core is confirmed to activate. `WorkItemType`/`Status`
+exposed raw and grouped, not filtered to guessed values (same discipline as
+`TransportType`/`RequestStatus`). Result: a generic **Workflow Item
+Overview** (counts by raw type/status, an item list) — not the mock-up's
+specific "Pending / In Manager Inbox / Escalated / Overdue / Completed
+Today" semantics, which need the status/type codes' real meaning and the
+agent model, neither confirmed yet. `ZC_TWR_WORKITEM` /
+`ZC_TWR_WORKITEM_SUMMARY` (cross-tab by type × status) built; `ZTWR_UI_SRVD`
+extended: `WorkItem`, `WorkItemSummary`. Pushed, pull pending.
 
 Decision pending.
 
@@ -251,3 +257,4 @@ Decision pending.
 | 2026-09-05 | Client confirmed the last 3 increments (Duplicate Employee, Transport by Type, Headcount by Group) all clean. Client then asked to close out the CDS layer entirely, deferring Fiori UI design to a later round. **§7 (CDS layer closure) added** — full inventory of what's built, and every remaining item bucketed by why it isn't (needs client data / needs SE11 verification / known-fragile / needs a non-CDS object / reframed as UI composition / Phase 2 / CAP track), so nothing reads as an oversight. |
 | 2026-09-05 | Client asked to see the dashboard visually and greenlit starting UI design (a Fiori developer to be involved once instructions are ready). Published an illustrative preview artifact (numbers are examples, not live data) and wrote `docs/04_fiori_ui_design.md`: recommends **Fiori Elements Overview Page**, not freestyle, since every entity built is already an analytical-card or list-card shape and neither Phase-2 visual (funnel, org tree) exists yet; full card map, groupings, KPI-strip design (Alerts reframed as filtered reads of existing summaries, no new backend object), launchpad tile, and BAS steps for the Fiori developer. Client then asked about Workflow specifically — see §8. |
 | 2026-09-05 | **§8 added** — Workflow Overview reconsidered. The funnel *visual* was always Phase 2/UI, correctly deferred; but the underlying *data* (`SWWWIHEAD`/`SWWUSERWI`) was bucketed into "Phase 2" partly for that same reason, not because it strictly needs client data the way Stage 7 does. Confidence in these two tables' exact fields is real but meaningfully lower than `PA0001`/`USR02`/`TBTCO`/`E070` — closer to the `T569V` risk class. Flagged rather than attempted blind; decision pending client confirmation on how to proceed. |
+| 2026-09-05 | Client confirmed both workflow tables are in force on this system. Built the conservative first cut (§8, option 1): `ZI_TWR_WORKITEM` over `SWWWIHEAD` alone, 3 fields only (`WI_ID`/`WI_TYPE`/`WI_STAT`), raw type/status exposure, no dates, no `SWWUSERWI`. `ZC_TWR_WORKITEM`/`ZC_TWR_WORKITEM_SUMMARY` built, `ZTWR_UI_SRVD` extended. Pushed, pull pending — first real read of this table class in the repo. |
