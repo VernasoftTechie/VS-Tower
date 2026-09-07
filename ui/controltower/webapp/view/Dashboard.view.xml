@@ -6,19 +6,17 @@
   height="100%"
   displayBlock="true">
 
-  <!-- Design note (2026-09-05 redesign): every card in the grid below is
-       plain SVG/CSS built by the controller into one HTML string
-       (Dashboard.controller.js - _cardHtml/_donutHtml/_barHtml/_renderCards),
-       rendered through this single sap.ui.core.HTML block, in place of
-       per-card sap.f.Card + sap.viz.VizFrame controls. Reasons: (1) it's
-       the exact layout the client reviewed and approved in the mockup -
-       compact, uniform-size cards, numbers beside the chart, no tables on
-       the dashboard; VizFrame's own chrome/legend/spacing can't be pulled
-       that tight. (2) it unifies donut and by-owner-bar rendering under one
-       simple, fully-controlled technique instead of two. Click-to-drill-down
-       is handled by one delegated listener in the controller
-       (onAfterRendering/_onGridClick), since the grid's DOM is replaced
-       wholesale on every 5s refresh - see the comment there. -->
+  <!-- Design note: every card is plain SVG/CSS built by the controller
+       (_cardHtml/_donutHtml/_barHtml/_renderAll) and rendered through one
+       sap.ui.core.HTML block per section. Click-to-drill-down is one
+       delegated listener on the view root (onAfterRendering/_onGridClick),
+       since each block's DOM is regenerated wholesale on refresh.
+
+       Three sections (2026-09-07):
+        - Live: current-state cards, auto-refreshes every 5s.
+        - Workflow: analytical, refreshes on demand only (date-range
+          filtering wired in a later stage).
+        - Workforce Context: reference data, loads once. -->
 
   <App id="app">
   <Page id="page" class="ctPage" title="{i18n>pageTitle}" showHeader="true">
@@ -27,11 +25,10 @@
         <core:Icon src="sap-icon://record" class="ctLiveDot" color="Positive"/>
         <Text text="{i18n>live}" class="ctLiveText sapUiTinyMarginBegin"/>
       </HBox>
-      <Text text="{i18n>lastUpdated}" class="sapUiTinyMarginEnd"/>
-      <Text text="{/meta/lastUpdatedText}" class="ctLastUpdated sapUiSmallMarginEnd"/>
       <Switch state="{/meta/autoRefresh}" customTextOn="{i18n>autoOn}" customTextOff="{i18n>autoOff}"
               change=".onToggleAutoRefresh" tooltip="{i18n>autoRefreshTooltip}" class="sapUiTinyMarginEnd"/>
-      <Button icon="sap-icon://refresh" tooltip="{i18n>refresh}" press=".onRefresh"/>
+      <Button icon="sap-icon://refresh" tooltip="{i18n>refreshAll}" press=".onRefresh"/>
+      <Button icon="sap-icon://sys-help" tooltip="{i18n>help}" press=".onHelp"/>
     </headerContent>
 
     <content>
@@ -44,7 +41,33 @@
 
       <Text text="{i18n>subTitle}" class="sapUiTinyMarginBottom"/>
 
-      <core:HTML content="{/cardsHtml}" sanitizeContent="false"/>
+      <!-- Live section -->
+      <Toolbar design="Transparent" class="ctSectionBar sapUiSmallMarginTop">
+        <Title text="{i18n>sectionLive}" level="H3"/>
+        <Text text="{i18n>sectionLiveHint}" class="ctSectionHint sapUiSmallMarginBegin"/>
+        <ToolbarSpacer/>
+        <Text text="{i18n>lastUpdated}" class="ctSectionStamp"/>
+        <Text text="{/meta/liveUpdatedText}" class="ctSectionStamp sapUiTinyMarginBegin"/>
+      </Toolbar>
+      <core:HTML content="{/liveHtml}" sanitizeContent="false"/>
+
+      <!-- Workflow section -->
+      <Toolbar design="Transparent" class="ctSectionBar sapUiMediumMarginTop">
+        <Title text="{i18n>sectionWorkflow}" level="H3"/>
+        <Text text="{i18n>sectionWorkflowHint}" class="ctSectionHint sapUiSmallMarginBegin"/>
+        <ToolbarSpacer/>
+        <Text text="{i18n>lastUpdated}" class="ctSectionStamp"/>
+        <Text text="{/meta/workflowUpdatedText}" class="ctSectionStamp sapUiTinyMarginBegin sapUiTinyMarginEnd"/>
+        <Button icon="sap-icon://refresh" tooltip="{i18n>refreshWorkflow}" press=".onRefreshWorkflow"/>
+      </Toolbar>
+      <core:HTML content="{/workflowHtml}" sanitizeContent="false"/>
+
+      <!-- Workforce context section -->
+      <Toolbar design="Transparent" class="ctSectionBar sapUiMediumMarginTop">
+        <Title text="{i18n>sectionWorkforce}" level="H3"/>
+        <Text text="{i18n>sectionWorkforceHint}" class="ctSectionHint sapUiSmallMarginBegin"/>
+      </Toolbar>
+      <core:HTML content="{/workforceHtml}" sanitizeContent="false"/>
     </content>
   </Page>
   </App>

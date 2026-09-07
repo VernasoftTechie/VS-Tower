@@ -23,10 +23,23 @@ Talks to the **existing** service `ZTWR_UI_SRVD` — no backend change.
 > design note at the top of `Dashboard.view.xml`. `sap.viz` is no longer a
 > dependency (removed from `manifest.json`, `ui5.yaml`, `index.html`).
 >
-> Not yet deployed/visually verified since this rebuild — same "first
-> render, report back whatever you see" discipline as every stage before
-> it. The **two tooling fixes from the previous deploy attempt still
-> apply** (see Troubleshooting) — nothing about this round touches them.
+> **Confirmed rendering with real data 2026-09-07** — client tested it and
+> is happy with the visuals. One bug fixed on the way (`_renderCards`
+> missing a `.bind(this)`). The `$metadata`-500 and `$batch`-403 in the
+> traces were both non-bugs (unfilled `ui5.yaml` host, and the OData
+> model's normal CSRF handshake) — see Troubleshooting.
+>
+> **Split into three sections 2026-09-07** — *Live* (auto-refreshes every
+> 5s), *Workflow* (on demand; date-range analytics being built next), and
+> *Workforce Context* (loads once). A **Help** button (top bar, `?`) opens
+> a built-in user guide, and every card carries a hover tooltip.
+>
+> **Charts are hand-rolled SVG/CSS, not `sap.viz.VizFrame`** — see the
+> design note at the top of `Dashboard.view.xml`. `sap.viz` is not a
+> dependency.
+>
+> The **two tooling fixes from the first deploy attempt still apply** (see
+> Troubleshooting).
 
 ---
 

@@ -10,22 +10,20 @@
    own fixed palette. See the design note in Dashboard.view.xml.
    ------------------------------------------------------------------- */
 
-.section-label {
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--sapContent_LabelColor, var(--sapNeutralColor));
-  margin: 20px 0 10px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+/* Section bars (Live / Workflow / Workforce Context) - real sap.m.Toolbar
+   controls in the view, styled down to a light rule. */
+.ctSectionBar {
+  border-bottom: 1px solid var(--sapList_BorderColor, #e2e7ec);
+  padding-bottom: 4px;
 }
-.section-label::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: var(--sapList_BorderColor, #e2e7ec);
+.ctSectionHint {
+  font-size: 0.75rem;
+  color: var(--sapContent_LabelColor, var(--sapNeutralColor));
+}
+.ctSectionStamp {
+  font-size: 0.72rem;
+  color: var(--sapContent_LabelColor, var(--sapNeutralColor));
+  font-variant-numeric: tabular-nums;
 }
 
 .ctGrid {
@@ -304,3 +302,25 @@ table.detail tr:last-child td { border-bottom: none; }
 .chip-crit { background: color-mix(in srgb, var(--sapNegativeColor, #bb0000) 16%, transparent); color: var(--sapNegativeColor, #bb0000); }
 .chip-warn { background: color-mix(in srgb, var(--sapCriticalColor, #e9730c) 16%, transparent); color: var(--sapCriticalColor, #e9730c); }
 .chip-good { background: color-mix(in srgb, var(--sapPositiveColor, #107e3e) 16%, transparent); color: var(--sapPositiveColor, #107e3e); }
+
+/* ---------------------------------------------------------------------
+   Help dialog (sap.m.Dialog > sap.ui.core.HTML)
+   ------------------------------------------------------------------- */
+.ctHelp {
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--sapTextColor);
+}
+.ctHelp h4 {
+  margin: 18px 0 6px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--sapContent_LabelColor, var(--sapNeutralColor));
+}
+.ctHelp h4:first-of-type { margin-top: 8px; }
+.ctHelp p { margin: 6px 0; }
+.ctHelp ul { margin: 6px 0; padding-left: 20px; }
+.ctHelp li { margin: 3px 0; }
+.ctHelp table.detail { margin: 4px 0 8px; }
+.ctHelp .status-chip { text-transform: none; }
