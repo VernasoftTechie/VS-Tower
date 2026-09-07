@@ -531,6 +531,16 @@ sap.ui.define([
         var summary = res[0], openNow = res[1], throughput = res[2],
             byAgent = res[3], aging = res[4], byActual = res[5];
 
+        // WI_STAT / WI_TYPE are widened char fields - trim so string
+        // comparisons and the legends are clean whether or not the gateway
+        // trims trailing spaces at this width.
+        [summary, openNow, throughput].forEach(function (arr) {
+          arr.forEach(function (r) {
+            if (r.Status != null) { r.Status = String(r.Status).trim(); }
+            if (r.WorkItemType != null) { r.WorkItemType = String(r.WorkItemType).trim(); }
+          });
+        });
+
         this._vm.setProperty("/workflow/byStatus", this._groupSum(summary, "Status", "ItemCount"));
         this._vm.setProperty("/workflow/openNow", openNow);
         this._vm.setProperty("/workflow/throughput", throughput);

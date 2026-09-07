@@ -27,7 +27,7 @@ define view entity ZI_TWR_WORKITEM
       cast( wi_type as abap.char( 4 ) )  as WorkItemType,
       cast( wi_stat as abap.char( 20 ) ) as Status,
       wi_text                            as WorkItemText,
-      wi_aagent                          as ActualAgent,
+      cast( wi_aagent as abap.char( 14 ) ) as ActualAgent,
       case when wi_cd is initial then cast( '' as abap.char( 8 ) )
            else cast( wi_cd as abap.char( 8 ) ) end   as CreatedOn,
       case when wi_aed is initial then cast( '' as abap.char( 8 ) )
