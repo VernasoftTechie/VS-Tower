@@ -416,13 +416,29 @@ sap.ui.define([
       return Promise.all([
         this._read("/HeadcountOverview"),
         this._read("/HeadcountByGroup"),
-        this._read("/PayrollAreaOverview")
+        this._read("/PayrollAreaOverview"),
+        this._read("/DimensionText")
       ]).then(function (res) {
-        var byArea = res[0], byGroup = res[1], byPayroll = res[2];
+        var byArea = res[0], byGroup = res[1], byPayroll = res[2], dimText = res[3];
+        // code -> business name, keyed by dimension type - see ZC_TWR_DIM_TEXT.
+        this._dimText = {};
+        dimText.forEach(function (r) {
+          if (!this._dimText[r.DimType]) { this._dimText[r.DimType] = {}; }
+          this._dimText[r.DimType][r.DimCode] = r.DimText;
+        }.bind(this));
         this._vm.setProperty("/workforce/byArea", this._groupSum(byArea, "CompanyCode", "EmployeeCount"));
         this._vm.setProperty("/workforce/byGroup", this._groupSum(byGroup, "EmployeeGroup", "EmployeeCount"));
         this._vm.setProperty("/workforce/byPayrollArea", this._groupSum(byPayroll, "PayrollArea", "EmployeeCount"));
       }.bind(this));
+    },
+
+    // "1000" -> "1000 - Dangote Cement PLC" when the text is known, else the
+    // bare code. sDimType is one of COMPANY / PERS_AREA / EMP_GROUP /
+    // PAYROLL_AREA (see ZC_TWR_DIM_TEXT).
+    _dimLabel: function (sDimType, sCode) {
+      var m = this._dimText && this._dimText[sDimType];
+      var t = m && m[sCode];
+      return t ? (sCode + " - " + t) : (sCode || "-");
     },
 
     _loadWorkflow: function () {
@@ -525,7 +541,7 @@ sap.ui.define([
       if (!aData.length || iTotal === 0) { return "Nothing to report right now."; }
       var top = aData.slice().sort(function (a, b) { return b.value - a.value; })[0];
       var pct = Math.round(top.value / iTotal * 100);
-      return "<b>" + this._esc(top.name) + "</b> is the largest group - " + top.value + " of " + iTotal + " (" + pct + "%).";
+      return "<b>" + this._esc(top.label || top.name) + "</b> is the largest group - " + top.value + " of " + iTotal + " (" + pct + "%).";
     },
 
     _ownerInsight: function (aOwners, sNoun) {
@@ -615,11 +631,17 @@ sap.ui.define([
       var transportOpenTotal = this._sum(transportByStatus, "value");
       var transportByOwner = vm.getProperty("/transport/byOwner") || [];
 
-      var workforceArea = (vm.getProperty("/workforce/byArea") || []).slice().sort(byName);
+      var withLabel = function (rows, sDimType) {
+        return rows.map(function (r) {
+          return { name: r.name, label: this._dimLabel(sDimType, r.name), value: r.value };
+        }.bind(this));
+      }.bind(this);
+
+      var workforceArea = withLabel((vm.getProperty("/workforce/byArea") || []).slice().sort(byName), "COMPANY");
       var workforceAreaTotal = this._sum(workforceArea, "value");
-      var workforceGroup = (vm.getProperty("/workforce/byGroup") || []).slice().sort(byName);
+      var workforceGroup = withLabel((vm.getProperty("/workforce/byGroup") || []).slice().sort(byName), "EMP_GROUP");
       var workforceGroupTotal = this._sum(workforceGroup, "value");
-      var workforcePayroll = (vm.getProperty("/workforce/byPayrollArea") || []).slice().sort(byName);
+      var workforcePayroll = withLabel((vm.getProperty("/workforce/byPayrollArea") || []).slice().sort(byName), "PAYROLL_AREA");
       var workforcePayrollTotal = this._sum(workforcePayroll, "value");
 
       var workflowByStatusRaw = (vm.getProperty("/workflow/byStatus") || []).slice().sort(byName);
@@ -748,7 +770,7 @@ sap.ui.define([
         chartType: "donut", data: workforceArea,
         insight: this._topInsight(workforceArea, workforceAreaTotal),
         detailCols: [this._i18n.getText("colType"), this._i18n.getText("colCount")],
-        detailRows: workforceArea.map(function (r) { return [esc(r.name), r.value.toLocaleString()]; })
+        detailRows: workforceArea.map(function (r) { return [esc(r.label), r.value.toLocaleString()]; })
       });
 
       cards.push({
@@ -758,7 +780,7 @@ sap.ui.define([
         chartType: "donut", data: workforceGroup,
         insight: this._topInsight(workforceGroup, workforceGroupTotal),
         detailCols: [this._i18n.getText("colType"), this._i18n.getText("colCount")],
-        detailRows: workforceGroup.map(function (r) { return [esc(r.name), r.value.toLocaleString()]; })
+        detailRows: workforceGroup.map(function (r) { return [esc(r.label), r.value.toLocaleString()]; })
       });
 
       cards.push({
@@ -768,7 +790,7 @@ sap.ui.define([
         chartType: "donut", data: workforcePayroll,
         insight: this._topInsight(workforcePayroll, workforcePayrollTotal),
         detailCols: [this._i18n.getText("colType"), this._i18n.getText("colCount")],
-        detailRows: workforcePayroll.map(function (r) { return [esc(r.name), r.value.toLocaleString()]; })
+        detailRows: workforcePayroll.map(function (r) { return [esc(r.label), r.value.toLocaleString()]; })
       });
 
       return cards;

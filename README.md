@@ -105,7 +105,8 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
 | Consumption CDS | `ZC_TWR_PAYROLL_AREA` (donut by payroll area — no new interface view, reuses Stage 1's `ZI_TWR_EMP_BASIC`) | 6 ✅ |
 | Interface CDS | `ZI_TWR_WORKITEM` (anchor, `SWWWIHEAD` — 3 fields only, conservative first cut) | 13 ✅ |
 | Consumption CDS | `ZC_TWR_WORKITEM` (exposed as `WorkItemSet` — renamed post-T4), `ZC_TWR_WORKITEM_SUMMARY` (donut, type × status cross-tab) | 13 ✅ |
-| Service | `ZTWR_UI_SRVD` (exposes all of the above, 17 entities) + `ZTWR_UI_SRVB_O4` (OData V4 – UI, published, shipped in the repo) | 1–6, 13 |
+| Consumption CDS | `ZC_TWR_DIM_TEXT` (`DimensionText` — UNION over `T001`/`T500P`/`T501T`/`T549T`, resolves company code / personnel area / employee group / payroll area codes to their business name) | B 🔄 pending |
+| Service | `ZTWR_UI_SRVD` (exposes all of the above, 18 entities) + `ZTWR_UI_SRVB_O4` (OData V4 – UI, published, shipped in the repo) | 1–6, 13, B |
 
 **Retired:** `ZTWR_CFG_IFACE` (table) + `ZI_TWR_CFG_IFACE` + `ZC_TWR_CFG_IFACE`
 — removed from the repo 2026-09-04, client direction (no custom
