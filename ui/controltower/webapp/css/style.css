@@ -25,6 +25,9 @@
   color: var(--sapContent_LabelColor, var(--sapNeutralColor));
   font-variant-numeric: tabular-nums;
 }
+.ctWfRange {
+  max-width: 15rem;
+}
 
 .ctGrid {
   display: grid;

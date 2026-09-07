@@ -153,27 +153,29 @@ lifts slightly on hover. All motion respects `prefers-reduced-motion` — see
 
 ## What this covers, and what it doesn't yet
 
-**11 uniform, chart-only cards** in two rows — "Needs Attention" then
-"Workforce Context" — each with a number, a compact donut or by-owner bar
-chart with its legend/values directly beside it, and a one-line finding
-computed from the live data (e.g. "Missing Bank details is the largest
-group - 18 of 42 (43%)"). **Click any card to open its full detail list**
-in a dialog — that's where every table now lives; there are no tables on
-the dashboard page itself.
+**Uniform, chart-only cards in three sections** — *Live* (auto-refresh 5s),
+*Workflow* (a date-range picker, default last 30 days), *Workforce Context*
+(loads once). Each card has a number, a compact donut or bar chart with its
+values beside it, and a one-line finding computed from the live data.
+**Click any card to open its full detail list** in a dialog — that's where
+every table lives; there are none on the page itself. A **Help** button
+(top bar `?`) explains all of it, and every card has a hover tooltip.
 
-| Card | Chart | Drill-down shows |
-|---|---|---|
-| Action Center | Bar, by domain | Every item across all 5 domains below, worst first, each with a **Contact** |
-| Data Quality | Donut, by category | Recent issues: Employee / Check / Field / Severity |
-| Security | Donut, locked users by type | Locked usernames + type |
-| Background Jobs (Health) | Donut, by status | Job / Status / **Scheduled By** (`TBTCO-SDLUNAME`, pending activation) |
-| Background Jobs by Owner | Bar, jobs per scheduler | Same list, sorted by owner |
-| Transport (Status) | Donut, D/R only ("still in the landscape") | Queued requests: Request / Status / Owner |
-| Transport by Owner | Bar, open vs. released per ID | Same list, sorted by owner — the pattern the client asked to see repeated everywhere it genuinely applies |
-| Workflow | Donut, by status | In-flight items (excludes Completed/Cancelled) |
-| Headcount by Company | Donut | Company code breakdown |
-| Headcount by Employee Group | Donut | Group breakdown |
-| Payroll Areas | Donut | Area breakdown |
+| Section | Card | Chart | Drill-down shows |
+|---|---|---|---|
+| Live | Action Center | Bar, by domain | Every item across all domains, worst first, each with a **Contact** |
+| Live | Data Quality | Donut, by category | Recent issues with the readable issue text |
+| Live | Security | Donut, locked users by type | Locked usernames + type |
+| Live | Background Jobs (Health) | Donut, by status | Job / Status / **Scheduled By** (`SDLUNAME`) |
+| Live | Background Jobs by Owner | Bar, per scheduler | Same list, by owner |
+| Live | Transport (Status) | Donut, D/R only | Queued requests: Request / Status / Owner |
+| Live | Transport by Owner | Bar, open vs. released per ID | Same list, by owner |
+| Workflow | Throughput | Bar, raised vs. processed | Throughput rows in the window (Status / Raised / Processed / Count) |
+| Workflow | By Status | Donut, open items now | Open items, oldest first, with each one's age and description |
+| Workflow | Pending by Approver | Bar, per agent | Agent + pending count (as of now) |
+| Workflow | Backlog Aging | Donut, 0–7 / 8–30 / 30+ | Open count per age bucket |
+| Workflow | Cleared by Agent | Bar, per agent | Agent + completed count in the window |
+| Context | Headcount by Company / Employee Group / Payroll Areas | Donut | Breakdown, codes shown with their business name |
 
 **Contact is only shown where the data actually has an owner.** Transport
 (`AS4USER`) and Background Jobs (`SDLUNAME`) get a real name. Security and

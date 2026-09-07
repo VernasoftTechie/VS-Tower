@@ -54,7 +54,13 @@
       <!-- Workflow section -->
       <Toolbar design="Transparent" class="ctSectionBar sapUiMediumMarginTop">
         <Title text="{i18n>sectionWorkflow}" level="H3"/>
-        <Text text="{i18n>sectionWorkflowHint}" class="ctSectionHint sapUiSmallMarginBegin"/>
+        <Label text="{i18n>wfRangeLabel}" class="ctSectionHint sapUiSmallMarginBegin"/>
+        <DateRangeSelection
+          dateValue="{/meta/wfFrom}"
+          secondDateValue="{/meta/wfTo}"
+          displayFormat="yyyy-MM-dd"
+          change=".onWorkflowRangeChange"
+          class="ctWfRange"/>
         <ToolbarSpacer/>
         <Text text="{i18n>lastUpdated}" class="ctSectionStamp"/>
         <Text text="{/meta/workflowUpdatedText}" class="ctSectionStamp sapUiTinyMarginBegin sapUiTinyMarginEnd"/>

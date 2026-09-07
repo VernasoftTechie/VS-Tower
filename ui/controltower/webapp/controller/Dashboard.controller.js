@@ -37,17 +37,27 @@ sap.ui.define([
     onInit: function () {
       this._i18n = this.getView().getModel("i18n").getResourceBundle();
       this._cardIndex = {};
+      var oNow = new Date();
+      this._wfTo = oNow;
+      this._wfFrom = new Date(oNow.getTime() - 30 * 86400000);
       this._vm = new JSONModel({
         dq: { byCategory: [], recent: [] },
         security: { lockedUsers: [] },
         jobs: { health: [], byStatus: [] },
         transport: { byStatus: [], byOwner: [], recent: [] },
         workforce: { byArea: [], byGroup: [], byPayrollArea: [] },
-        workflow: { byStatus: [], recent: [] },
+        workflow: {
+          byStatus: [], openNow: [], throughput: [],
+          byAgent: [], aging: [], byActualAgent: [],
+          raised: 0, processed: 0
+        },
         liveHtml: "",
         workflowHtml: "",
         workforceHtml: "",
-        meta: { autoRefresh: true, liveUpdatedText: "", workflowUpdatedText: "" }
+        meta: {
+          autoRefresh: true, liveUpdatedText: "", workflowUpdatedText: "",
+          wfFrom: this._wfFrom, wfTo: this._wfTo
+        }
       });
       this.getView().setModel(this._vm);
       this._loadLive();
@@ -85,6 +95,17 @@ sap.ui.define([
 
     // Workflow-section refresh button - reload only that section.
     onRefreshWorkflow: function () {
+      this._loadWorkflowSection();
+    },
+
+    // Workflow date-range picker changed - reload the section with the new
+    // window. Defaults to the last 30 days (set in onInit).
+    onWorkflowRangeChange: function (oEvent) {
+      var oFrom = oEvent.getParameter("from");
+      var oTo = oEvent.getParameter("to");
+      if (!oFrom || !oTo) { return; }
+      this._wfFrom = oFrom;
+      this._wfTo = oTo;
       this._loadWorkflowSection();
     },
 
@@ -187,9 +208,11 @@ sap.ui.define([
         '<ul>',
         '<li><b>Live</b> – current-state cards. Refreshes itself every 5 seconds',
         ' (the switch in the top bar pauses it). Use this for "what needs a look right now".</li>',
-        '<li><b>Workflow</b> – analytical view of approvals and work items. Refreshes',
-        ' only when you press its refresh button (date-range filtering is being added',
-        ' next, defaulting to the last 30 days).</li>',
+        '<li><b>Workflow</b> – approvals and work items. Pick a <b>date range</b>',
+        ' at the top of the section (defaults to the last 30 days); the',
+        ' throughput and "cleared by agent" cards recalculate for that window.',
+        ' The "pending by approver", "aging" and "by status" cards are always',
+        ' as-of-now – a date range can\'t sensibly say what is still stuck.</li>',
         '<li><b>Workforce Context</b> – headcount and payroll reference figures.',
         ' Loaded once; it barely changes.</li>',
         '</ul>',
@@ -209,7 +232,11 @@ sap.ui.define([
         this._helpRow("Background Jobs – by Owner", "The same jobs grouped by who scheduled them, so you can see whose jobs are stuck."),
         this._helpRow("Transport – Status", "Transport requests still in the landscape (Modifiable, or Released but not yet imported). Ones already moved on are not shown."),
         this._helpRow("Transport – by Owner", "Open vs. released transport count per developer / consultant ID – who has the most sitting open."),
-        this._helpRow("Workflow", "Work items by status. In-flight items (not yet Completed or Cancelled) are the headline count."),
+        this._helpRow("Workflow – Throughput", "How many work items were raised, and how many processed, inside the chosen date range."),
+        this._helpRow("Workflow – by Status", "Open work items right now, by status, oldest first in the drill-down with each one's age."),
+        this._helpRow("Workflow – Pending by Approver", "Whose inbox the open items sit in, as of now. An item offered to several people counts for each of them."),
+        this._helpRow("Workflow – Backlog Aging", "The current open queue split by age: 0–7 days / 8–30 / 30+. The 30+ slice is the one to watch."),
+        this._helpRow("Workflow – Cleared by Agent", "Who completed the most work items inside the chosen date range."),
         this._helpRow("Headcount by Company / by Employee Group / Payroll Areas", "Where the workforce sits. Context, not alerts – these cards never pulse."),
         '</tbody></table>',
 
@@ -224,10 +251,8 @@ sap.ui.define([
 
         '<h4>What is still being built</h4>',
         '<ul>',
-        '<li><b>Workflow date range</b> – raised vs. processed in a chosen window,',
-        ' plus "pending by approver" and an age profile of what is stuck.</li>',
-        '<li><b>Business names for codes</b> – e.g. company code <i>1000</i> shown with',
-        ' its name. Rolling out per dimension.</li>',
+        '<li><b>Business names for more codes</b> – cost centre and org unit',
+        ' (company code, employee group and payroll area already show their name).</li>',
         '<li><b>Interfaces and other areas</b> – planned for a later phase.</li>',
         '</ul>',
 
@@ -319,6 +344,33 @@ sap.ui.define([
     _titleCase: function (s) {
       s = String(s || "");
       return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s;
+    },
+
+    // Date <-> YYYYMMDD (the form the workflow date columns are stored as -
+    // see ZI_TWR_WORKITEM; range $filter is a string compare on this).
+    _ymd: function (d) {
+      if (!d) { return ""; }
+      var mo = d.getMonth() + 1, day = d.getDate();
+      return "" + d.getFullYear() + (mo < 10 ? "0" : "") + mo + (day < 10 ? "0" : "") + day;
+    },
+
+    _fmtYmd: function (s) {
+      s = String(s || "");
+      return s.length === 8 ? s.slice(0, 4) + "-" + s.slice(4, 6) + "-" + s.slice(6, 8) : "-";
+    },
+
+    _daysBetween: function (sYmd, oNow) {
+      var s = String(sYmd || "");
+      if (s.length !== 8) { return -1; }
+      var d = new Date(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8));
+      return Math.floor((oNow - d) / 86400000);
+    },
+
+    // Workflow agents are often the 14-char org-object form "US<username>".
+    _agentDisplay: function (raw) {
+      var s = String(raw || "").trim();
+      if (/^US[A-Za-z0-9_]/.test(s)) { return s.slice(2); }
+      return s || "(unassigned)";
     },
 
     _groupSum: function (rows, dimField, measureField) {
@@ -442,13 +494,61 @@ sap.ui.define([
     },
 
     _loadWorkflow: function () {
+      var sFrom = this._ymd(this._wfFrom);
+      var sTo = this._ymd(this._wfTo);
+      this._vm.setProperty("/meta/wfFrom", this._wfFrom);
+      this._vm.setProperty("/meta/wfTo", this._wfTo);
+
+      var rangeAnd = function (sField) {
+        return new Filter({
+          filters: [
+            new Filter(sField, FilterOperator.GE, sFrom),
+            new Filter(sField, FilterOperator.LE, sTo)
+          ],
+          and: true
+        });
+      };
+      var openOnly = new Filter({
+        filters: [
+          new Filter("Status", FilterOperator.NE, "COMPLETED"),
+          new Filter("Status", FilterOperator.NE, "CANCELLED")
+        ],
+        and: true
+      });
+
       return Promise.all([
         this._read("/WorkItemSummary"),
-        this._read("/WorkItemSet", 50)
+        // open items right now, oldest first - feeds the "by status" card,
+        // its drill-down and the Action Center (not date-bounded).
+        this._read("/WorkItemSet", 40, [openOnly], [new Sorter("CreatedOn", false)]),
+        // throughput: rows raised OR processed inside the window.
+        this._read("/WorkflowThroughput", 5000,
+          [new Filter({ filters: [rangeAnd("CreatedOn"), rangeAnd("ChangedOn")], and: false })]),
+        this._read("/WorkflowByAgent", 300),
+        this._read("/WorkflowAging", 4000),
+        this._read("/WorkflowByActualAgent", 4000, [rangeAnd("ChangedOn")])
       ]).then(function (res) {
-        var summary = res[0], recent = res[1];
+        var summary = res[0], openNow = res[1], throughput = res[2],
+            byAgent = res[3], aging = res[4], byActual = res[5];
+
         this._vm.setProperty("/workflow/byStatus", this._groupSum(summary, "Status", "ItemCount"));
-        this._vm.setProperty("/workflow/recent", recent);
+        this._vm.setProperty("/workflow/openNow", openNow);
+        this._vm.setProperty("/workflow/throughput", throughput);
+        this._vm.setProperty("/workflow/byAgent", byAgent);
+        this._vm.setProperty("/workflow/aging", aging);
+        this._vm.setProperty("/workflow/byActualAgent", byActual);
+
+        var inRange = function (s) {
+          return s && s.length === 8 && s >= sFrom && s <= sTo;
+        };
+        var raised = throughput.reduce(function (t, r) {
+          return t + (inRange(r.CreatedOn) ? this._num(r.ItemCount) : 0);
+        }.bind(this), 0);
+        var processed = throughput.reduce(function (t, r) {
+          return t + ((inRange(r.ChangedOn) && r.Status === "COMPLETED") ? this._num(r.ItemCount) : 0);
+        }.bind(this), 0);
+        this._vm.setProperty("/workflow/raised", raised);
+        this._vm.setProperty("/workflow/processed", processed);
       }.bind(this));
     },
 
@@ -499,13 +599,13 @@ sap.ui.define([
         });
       }.bind(this));
 
-      (vm.getProperty("/workflow/recent") || []).forEach(function (w) {
+      (vm.getProperty("/workflow/openNow") || []).slice(0, 12).forEach(function (w) {
         if (w.Status === "COMPLETED" || w.Status === "CANCELLED") { return; }
         aItems.push({
           domain: "Workflow", item: w.WorkItemId,
-          detail: (w.WorkItemType ? w.WorkItemType + " - " : "") + "status " + this._titleCase(w.Status),
+          detail: w.WorkItemText || ((w.WorkItemType ? w.WorkItemType + " - " : "") + "status " + this._titleCase(w.Status)),
           status: this._titleCase(w.Status), criticality: 2,
-          contact: "Process owner - see Workflow section"
+          contact: "See Workflow section"
         });
       }.bind(this));
 
@@ -556,7 +656,8 @@ sap.ui.define([
 
     _donutHtml: function (aData, iSize, iThickness) {
       iSize = iSize || 76; iThickness = iThickness || 13;
-      var total = aData.reduce(function (s, d) { return s + d.value; }, 0) || 1;
+      var realTotal = aData.reduce(function (s, d) { return s + d.value; }, 0);
+      var total = realTotal || 1;
       var r = (iSize - iThickness) / 2;
       var c = 2 * Math.PI * r;
       var offset = 0;
@@ -576,7 +677,7 @@ sap.ui.define([
       }.bind(this)).join("") + "</ul>";
       var svg = '<svg class="donut-svg" width="' + iSize + '" height="' + iSize + '" viewBox="0 0 ' + iSize + " " + iSize + '" role="img" aria-label="chart">' +
         '<circle cx="' + iSize / 2 + '" cy="' + iSize / 2 + '" r="' + r + '" fill="none" stroke="var(--sapList_Background,#eef2f6)" stroke-width="' + iThickness + '"/>' +
-        rings.join("") + '<text x="50%" y="53%" text-anchor="middle" font-size="13" font-weight="700" fill="var(--sapTextColor,#1a2733)">' + total + "</text></svg>";
+        rings.join("") + '<text x="50%" y="53%" text-anchor="middle" font-size="13" font-weight="700" fill="var(--sapTextColor,#1a2733)">' + realTotal.toLocaleString() + "</text></svg>";
       return '<div class="chart-col">' + svg + legend + "</div>";
     },
 
@@ -648,10 +749,42 @@ sap.ui.define([
       var workflowByStatus = workflowByStatusRaw.map(function (d) {
         return { name: d.name, label: this._titleCase(d.name), value: d.value };
       }.bind(this));
-      var workflowRecent = (vm.getProperty("/workflow/recent") || []).filter(function (w) {
+      var workflowOpen = (vm.getProperty("/workflow/openNow") || []).filter(function (w) {
         return w.Status !== "COMPLETED" && w.Status !== "CANCELLED";
       });
       var workflowTotal = this._sum(workflowByStatus, "value");
+
+      // Workflow date-range section aggregations.
+      var wfNow = new Date();
+      var wfThroughput = vm.getProperty("/workflow/throughput") || [];
+      var wfRaised = this._num(vm.getProperty("/workflow/raised"));
+      var wfProcessed = this._num(vm.getProperty("/workflow/processed"));
+
+      var wfByAgent = (vm.getProperty("/workflow/byAgent") || []).map(function (r) {
+        return { owner: this._agentDisplay(r.AgentId), open: this._num(r.PendingCount), released: 0 };
+      }.bind(this)).sort(function (a, b) { return b.open - a.open; });
+
+      var wfBuckets = [
+        { name: "0-7 days", value: 0 },
+        { name: "8-30 days", value: 0 },
+        { name: "30+ days", value: 0 }
+      ];
+      (vm.getProperty("/workflow/aging") || []).forEach(function (r) {
+        var age = this._daysBetween(r.CreatedOn, wfNow);
+        var idx = age > 30 ? 2 : age > 7 ? 1 : 0;
+        wfBuckets[idx].value += this._num(r.OpenCount);
+      }.bind(this));
+      var wfAgingTotal = wfBuckets.reduce(function (t, b) { return t + b.value; }, 0);
+
+      var wfClearedAgg = {};
+      (vm.getProperty("/workflow/byActualAgent") || []).forEach(function (r) {
+        var a = this._agentDisplay(r.ActualAgent);
+        wfClearedAgg[a] = (wfClearedAgg[a] || 0) + this._num(r.ProcessedCount);
+      }.bind(this));
+      var wfClearedByAgent = Object.keys(wfClearedAgg).map(function (k) {
+        return { owner: k, open: wfClearedAgg[k], released: 0 };
+      }).sort(function (a, b) { return b.open - a.open; });
+      var wfClearedTotal = wfClearedByAgent.reduce(function (t, r) { return t + r.open; }, 0);
 
       var actionItems = this._collectActionItems();
       var actionByDomain = this._countByDomain(actionItems);
@@ -751,16 +884,71 @@ sap.ui.define([
         }.bind(this))
       });
 
+      // --- Workflow date-range section (5 cards) ---
+
       cards.push({
-        section: "workflow", id: "workflow", attn: workflowRecent.length > 0,
+        section: "workflow", id: "wf-throughput", attn: false,
+        title: this._i18n.getText("cardWfThroughput"), sub: this._i18n.getText("cardWfThroughputSub"),
+        kpi: wfProcessed, kpiLabel: this._i18n.getText("kpiWfProcessed"),
+        chartType: "bar",
+        data: [
+          { owner: this._i18n.getText("wfRaised"), open: wfRaised, released: 0 },
+          { owner: this._i18n.getText("wfProcessed"), open: wfProcessed, released: 0 }
+        ],
+        insight: "<b>" + wfRaised + "</b> raised, <b>" + wfProcessed + "</b> processed in the selected window.",
+        detailCols: [this._i18n.getText("colStatus"), this._i18n.getText("colRaisedOn"), this._i18n.getText("colProcessedOn"), this._i18n.getText("colCount")],
+        detailRows: wfThroughput.slice().sort(function (a, b) {
+          return String(b.ChangedOn || "").localeCompare(String(a.ChangedOn || ""));
+        }).slice(0, 200).map(function (r) {
+          return [esc(this._titleCase(r.Status)), esc(this._fmtYmd(r.CreatedOn)), esc(this._fmtYmd(r.ChangedOn)), this._num(r.ItemCount).toLocaleString()];
+        }.bind(this))
+      });
+
+      cards.push({
+        section: "workflow", id: "wf-status", attn: workflowOpen.length > 0,
         title: this._i18n.getText("cardWorkflow"), sub: this._i18n.getText("cardWorkflowSub"),
-        kpi: workflowRecent.length, kpiLabel: this._i18n.getText("kpiWorkflowLabel"),
+        kpi: workflowOpen.length, kpiLabel: this._i18n.getText("kpiWorkflowLabel"),
         chartType: "donut", data: workflowByStatus,
         insight: this._topInsight(workflowByStatus, workflowTotal),
-        detailCols: [this._i18n.getText("colItem"), this._i18n.getText("colType"), this._i18n.getText("colStatus")],
-        detailRows: workflowRecent.map(function (w) {
-          return [esc(w.WorkItemId), esc(w.WorkItemType), this._statusChip(2, this._titleCase(w.Status))];
+        detailCols: [this._i18n.getText("colItem"), this._i18n.getText("colDescription"), this._i18n.getText("colStatus"), this._i18n.getText("colAgeDays")],
+        detailRows: workflowOpen.map(function (w) {
+          var age = this._daysBetween(w.CreatedOn, wfNow);
+          return [esc(w.WorkItemId), esc(w.WorkItemText), this._statusChip(2, this._titleCase(w.Status)), age < 0 ? "-" : String(age)];
         }.bind(this))
+      });
+
+      cards.push({
+        section: "workflow", id: "wf-pending-agent", attn: wfByAgent.length > 0 && wfByAgent[0].open > 0,
+        title: this._i18n.getText("cardWfPending"), sub: this._i18n.getText("cardWfPendingSub"),
+        kpi: wfByAgent.length, kpiLabel: this._i18n.getText("kpiWfPending"),
+        chartType: "bar", data: wfByAgent,
+        insight: this._ownerInsight(wfByAgent, "items"),
+        detailCols: [this._i18n.getText("colAgent"), this._i18n.getText("colPending")],
+        detailRows: wfByAgent.map(function (r) { return [esc(r.owner), r.open.toLocaleString()]; })
+      });
+
+      cards.push({
+        section: "workflow", id: "wf-aging", attn: wfBuckets[2].value > 0,
+        title: this._i18n.getText("cardWfAging"), sub: this._i18n.getText("cardWfAgingSub"),
+        kpi: wfAgingTotal, kpiLabel: this._i18n.getText("kpiWfAging"),
+        chartType: "donut", data: wfBuckets,
+        insight: wfBuckets[2].value > 0
+          ? "<b>" + wfBuckets[2].value + "</b> items have been open 30+ days."
+          : "Nothing in the queue is older than 30 days.",
+        detailCols: [this._i18n.getText("colAgeBucket"), this._i18n.getText("colOpen")],
+        detailRows: wfBuckets.map(function (b) { return [esc(b.name), b.value.toLocaleString()]; })
+      });
+
+      cards.push({
+        section: "workflow", id: "wf-cleared-agent", attn: false,
+        title: this._i18n.getText("cardWfCleared"), sub: this._i18n.getText("cardWfClearedSub"),
+        kpi: wfClearedTotal, kpiLabel: this._i18n.getText("kpiWfCleared"),
+        chartType: "bar", data: wfClearedByAgent,
+        insight: wfClearedByAgent.length
+          ? "<b>" + this._esc(wfClearedByAgent[0].owner) + "</b> cleared " + wfClearedByAgent[0].open + " - the most in the window."
+          : "Nothing was cleared in the selected window.",
+        detailCols: [this._i18n.getText("colAgent"), this._i18n.getText("colCleared")],
+        detailRows: wfClearedByAgent.map(function (r) { return [esc(r.owner), r.open.toLocaleString()]; })
       });
 
       cards.push({
