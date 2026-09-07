@@ -1,10 +1,7 @@
 {
   "BASEINFO": {
     "FROM": [
-      "T001",
-      "T500P",
-      "T501T",
-      "T549T"
+      "ZI_TWR_DIM_TEXT"
     ]
   }
 }

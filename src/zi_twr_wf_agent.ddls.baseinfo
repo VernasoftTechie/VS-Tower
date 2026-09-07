@@ -1,7 +1,8 @@
 {
   "BASEINFO": {
     "FROM": [
-      "SWWUSERWI"
+      "SWWUSERWI",
+      "ZI_TWR_WORKITEM"
     ]
   }
 }

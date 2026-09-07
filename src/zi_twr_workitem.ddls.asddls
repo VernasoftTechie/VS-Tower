@@ -24,8 +24,8 @@ define view entity ZI_TWR_WORKITEM
   as select from swwwihead
 {
   key wi_id                              as WorkItemId,
-      cast( wi_type as abap.char( 2 ) )  as WorkItemType,
-      cast( wi_stat as abap.char( 10 ) ) as Status,
+      cast( wi_type as abap.char( 4 ) )  as WorkItemType,
+      cast( wi_stat as abap.char( 20 ) ) as Status,
       wi_text                            as WorkItemText,
       wi_aagent                          as ActualAgent,
       case when wi_cd is initial then cast( '' as abap.char( 8 ) )
