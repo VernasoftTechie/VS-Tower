@@ -228,6 +228,84 @@
   color: var(--sapTextColor);
 }
 
+/* Ranked list - high-cardinality context cards (Workforce Context).
+   Top N as labelled proportional bars + one "others" row, stacked full
+   width under a compact KPI line, so the card never dumps a 40-row legend. */
+.card-tall {
+  height: auto;
+  min-height: 260px;
+}
+.card-body.card-stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+.kpi-inline {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.kpi-num-sm {
+  font-size: 1.45rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--sapTextColor);
+}
+.card-stack .chart-col {
+  align-items: stretch;
+  overflow: hidden;
+}
+.rank-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+}
+.rank-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(22px, 0.8fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.7rem;
+  line-height: 1.2;
+}
+.rank-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--sapTextColor);
+}
+.rank-track {
+  height: 7px;
+  border-radius: 4px;
+  background: var(--sapList_Background, #eef2f6);
+  overflow: hidden;
+}
+.rank-fill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+.rank-val {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--sapTextColor);
+  text-align: right;
+}
+.rank-pct {
+  font-variant-numeric: tabular-nums;
+  color: var(--sapContent_LabelColor, var(--sapNeutralColor));
+  text-align: right;
+  min-width: 30px;
+}
+.rank-other .rank-label {
+  color: var(--sapContent_LabelColor, var(--sapNeutralColor));
+  font-weight: 400;
+  font-style: italic;
+}
+
 /* KPI tiles/cards that currently have something to attend to (count > 0)
    get a soft outward pulse instead of sitting static. */
 .ctPulseAlert {

@@ -691,6 +691,49 @@ sap.ui.define([
       return '<div class="chart-col">' + svg + legend + "</div>";
     },
 
+    // Compact ranked list for high-cardinality context data (company codes,
+    // employee groups, payroll areas - dozens of entries). A donut + full
+    // legend is unreadable at that cardinality; this shows the top N as
+    // labelled proportional bars + one "others" row, and the card stays
+    // legible. iTotal drives the % of the whole workforce.
+    _rankListHtml: function (aData, iTotal) {
+      var TOP = 6;
+      var sorted = aData.slice().sort(function (a, b) { return b.value - a.value; });
+      var total = iTotal || sorted.reduce(function (s, d) { return s + d.value; }, 0) || 1;
+      var head = sorted.slice(0, TOP);
+      var rest = sorted.slice(TOP);
+      var max = head.length ? head[0].value : 1;
+      var rows = head.map(function (d, i) {
+        var w = Math.max(3, Math.round(d.value / max * 100));
+        var name = this._esc(d.label || d.name);
+        return '<div class="rank-row">' +
+          '<span class="rank-label" title="' + name + '">' + name + '</span>' +
+          '<span class="rank-track"><span class="rank-fill" style="width:' + w + '%;background:' + CAT[i % CAT.length] + '"></span></span>' +
+          '<span class="rank-val">' + d.value.toLocaleString() + '</span>' +
+          '<span class="rank-pct">' + Math.round(d.value / total * 100) + '%</span></div>';
+      }.bind(this));
+      if (rest.length) {
+        var restSum = rest.reduce(function (s, d) { return s + d.value; }, 0);
+        rows.push('<div class="rank-row rank-other">' +
+          '<span class="rank-label">' + this._esc(this._i18n.getText("othersN", [rest.length])) + '</span>' +
+          '<span class="rank-track"></span>' +
+          '<span class="rank-val">' + restSum.toLocaleString() + '</span>' +
+          '<span class="rank-pct">' + Math.round(restSum / total * 100) + '%</span></div>');
+      }
+      return '<div class="chart-col"><div class="rank-list">' + rows.join("") + "</div></div>";
+    },
+
+    // Plain-English finding for a context card: which entry is biggest, its
+    // share of the workforce, and how many entries there are in total.
+    _contextInsight: function (aData, iTotal, sUnit) {
+      if (!aData.length || !iTotal) { return this._i18n.getText("noData"); }
+      var top = aData.slice().sort(function (a, b) { return b.value - a.value; })[0];
+      var pct = Math.round(top.value / iTotal * 100);
+      return "<b>" + this._esc(top.label || top.name) + "</b> — " +
+        top.value.toLocaleString() + " of " + iTotal.toLocaleString() +
+        " (" + pct + "%). " + aData.length + " " + sUnit + " in total.";
+    },
+
     _barHtml: function (aOwners) {
       var max = Math.max.apply(null, aOwners.map(function (o) { return o.open + o.released; }).concat([1]));
       var rows = aOwners.slice(0, 6).map(function (o) {
@@ -705,15 +748,25 @@ sap.ui.define([
     },
 
     _cardHtml: function (c) {
-      var chart = c.chartType === "bar" ? this._barHtml(c.data) : this._donutHtml(c.data);
       var kpi = typeof c.kpi === "number" ? c.kpi.toLocaleString() : this._esc(c.kpi);
       var tip = this._esc(c.title + " — " + c.kpiLabel + ". Click for the full list.");
-      return '<div class="card' + (c.attn ? " ctPulseAlert" : "") + '" tabindex="0" role="button" data-id="' + c.id + '" aria-haspopup="dialog" title="' + tip + '">' +
+      var body;
+      if (c.chartType === "rank") {
+        body = '<div class="card-body card-stack">' +
+          '<div class="kpi-inline"><span class="kpi-num-sm">' + kpi + "</span>" +
+          '<span class="kpi-label">' + this._esc(c.kpiLabel) + "</span></div>" +
+          this._rankListHtml(c.data, c.total) + "</div>";
+      } else {
+        var chart = c.chartType === "bar" ? this._barHtml(c.data) : this._donutHtml(c.data);
+        body = '<div class="card-body"><div class="kpi-col"><div class="kpi-num">' + kpi + "</div>" +
+          '<div class="kpi-label">' + this._esc(c.kpiLabel) + "</div></div>" + chart + "</div>";
+      }
+      return '<div class="card' + (c.attn ? " ctPulseAlert" : "") + (c.chartType === "rank" ? " card-tall" : "") +
+        '" tabindex="0" role="button" data-id="' + c.id + '" aria-haspopup="dialog" title="' + tip + '">' +
         '<div class="card-head"><div><div class="card-title">' + this._esc(c.title) + "</div>" +
         '<div class="card-sub">' + this._esc(c.sub) + "</div></div>" +
         '<div class="expand-hint">' + this._esc(this._i18n.getText("clickToOpen")) + "</div></div>" +
-        '<div class="card-body"><div class="kpi-col"><div class="kpi-num">' + kpi + "</div>" +
-        '<div class="kpi-label">' + this._esc(c.kpiLabel) + "</div></div>" + chart + "</div>" +
+        body +
         '<div class="insight">' + c.insight + "</div></div>";
     },
 
@@ -961,34 +1014,40 @@ sap.ui.define([
         detailRows: wfClearedByAgent.map(function (r) { return [esc(r.owner), r.open.toLocaleString()]; })
       });
 
+      var byValueDesc = function (a, b) { return b.value - a.value; };
+      var contextDetail = function (rows, iTotal) {
+        return rows.slice().sort(byValueDesc).map(function (r) {
+          var p = iTotal ? Math.round(r.value / iTotal * 100) : 0;
+          return [esc(r.label), r.value.toLocaleString(), p + "%"];
+        });
+      };
+      var ctxCols = [this._i18n.getText("colType"), this._i18n.getText("colCount"), this._i18n.getText("colShare")];
+
       cards.push({
         section: "workforce", id: "hc-area", attn: false,
         title: this._i18n.getText("cardHeadcountArea"), sub: this._i18n.getText("cardHeadcountAreaSub"),
         kpi: workforceAreaTotal, kpiLabel: this._i18n.getText("kpiHeadcountLabel"),
-        chartType: "donut", data: workforceArea,
-        insight: this._topInsight(workforceArea, workforceAreaTotal),
-        detailCols: [this._i18n.getText("colType"), this._i18n.getText("colCount")],
-        detailRows: workforceArea.map(function (r) { return [esc(r.label), r.value.toLocaleString()]; })
+        chartType: "rank", data: workforceArea, total: workforceAreaTotal,
+        insight: this._contextInsight(workforceArea, workforceAreaTotal, this._i18n.getText("unitCompanies")),
+        detailCols: ctxCols, detailRows: contextDetail(workforceArea, workforceAreaTotal)
       });
 
       cards.push({
         section: "workforce", id: "hc-group", attn: false,
         title: this._i18n.getText("cardHeadcountGroup"), sub: this._i18n.getText("cardHeadcountGroupSub"),
         kpi: workforceGroupTotal, kpiLabel: this._i18n.getText("kpiHeadcountLabel"),
-        chartType: "donut", data: workforceGroup,
-        insight: this._topInsight(workforceGroup, workforceGroupTotal),
-        detailCols: [this._i18n.getText("colType"), this._i18n.getText("colCount")],
-        detailRows: workforceGroup.map(function (r) { return [esc(r.label), r.value.toLocaleString()]; })
+        chartType: "rank", data: workforceGroup, total: workforceGroupTotal,
+        insight: this._contextInsight(workforceGroup, workforceGroupTotal, this._i18n.getText("unitGroups")),
+        detailCols: ctxCols, detailRows: contextDetail(workforceGroup, workforceGroupTotal)
       });
 
       cards.push({
         section: "workforce", id: "payroll", attn: false,
         title: this._i18n.getText("cardPayrollArea"), sub: this._i18n.getText("cardPayrollAreaSub"),
         kpi: workforcePayroll.length, kpiLabel: this._i18n.getText("kpiPayrollLabel"),
-        chartType: "donut", data: workforcePayroll,
-        insight: this._topInsight(workforcePayroll, workforcePayrollTotal),
-        detailCols: [this._i18n.getText("colType"), this._i18n.getText("colCount")],
-        detailRows: workforcePayroll.map(function (r) { return [esc(r.label), r.value.toLocaleString()]; })
+        chartType: "rank", data: workforcePayroll, total: workforcePayrollTotal,
+        insight: this._contextInsight(workforcePayroll, workforcePayrollTotal, this._i18n.getText("unitPayrollAreas")),
+        detailCols: ctxCols, detailRows: contextDetail(workforcePayroll, workforcePayrollTotal)
       });
 
       return cards;
