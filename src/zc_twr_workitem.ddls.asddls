@@ -6,9 +6,10 @@
   typeNamePlural: 'Workflow Items'
 }
 
-// Plain "select from" query view - same shape as every prior stage. No
-// criticality (status-code meanings not yet known) and no dates (not in
-// this cut's anchor - see ZI_TWR_WORKITEM).
+// Plain "select from" query view. Dates are text (see ZI_TWR_WORKITEM) so the
+// Workflow section's date-range picker filters them as YYYYMMDD strings.
+// Explicit @EndUserText.label on the added elements (rule #21) - WI_TEXT /
+// WI_AAGENT carry their own data-element labels which may not read well.
 
 define view entity ZC_TWR_WORKITEM
   as select from ZI_TWR_WORKITEM
@@ -23,5 +24,23 @@ define view entity ZC_TWR_WORKITEM
 
       @UI.lineItem:       [{ position: 30 }]
       @UI.selectionField: [{ position: 30 }]
-      Status
+      Status,
+
+      @UI.lineItem:       [{ position: 40 }]
+      @EndUserText.label: 'Description'
+      WorkItemText,
+
+      @UI.lineItem:       [{ position: 50 }]
+      @EndUserText.label: 'Actual Agent'
+      ActualAgent,
+
+      @UI.lineItem:       [{ position: 60 }]
+      @UI.selectionField: [{ position: 40 }]
+      @EndUserText.label: 'Raised On (YYYYMMDD)'
+      CreatedOn,
+
+      @UI.lineItem:       [{ position: 70 }]
+      @UI.selectionField: [{ position: 50 }]
+      @EndUserText.label: 'Processed On (YYYYMMDD)'
+      ChangedOn
 }

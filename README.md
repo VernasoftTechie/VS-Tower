@@ -103,10 +103,12 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
 | Consumption CDS | `ZC_TWR_HEADCOUNT` (donut by company/personnel area — no new interface view, reuses Stage 1's `ZI_TWR_EMP_BASIC`) | 5 ✅ |
 | Consumption CDS | `ZC_TWR_HEADCOUNT_BY_GROUP` (donut by employee group/subgroup — same reuse) | 5 *(refined)* ✅ |
 | Consumption CDS | `ZC_TWR_PAYROLL_AREA` (donut by payroll area — no new interface view, reuses Stage 1's `ZI_TWR_EMP_BASIC`) | 6 ✅ |
-| Interface CDS | `ZI_TWR_WORKITEM` (anchor, `SWWWIHEAD` — 3 fields only, conservative first cut) | 13 ✅ |
+| Interface CDS | `ZI_TWR_WORKITEM` (anchor, `SWWWIHEAD` — extended with `WI_TEXT`/`WI_CD`/`WI_AED`/`WI_AAGENT` in Stage C) | 13 ✅ / C 🔄 |
 | Consumption CDS | `ZC_TWR_WORKITEM` (exposed as `WorkItemSet` — renamed post-T4), `ZC_TWR_WORKITEM_SUMMARY` (donut, type × status cross-tab) | 13 ✅ |
 | Consumption CDS | `ZC_TWR_DIM_TEXT` (`DimensionText` — UNION over `T001`/`T500P`/`T501T`/`T549T`, resolves company code / personnel area / employee group / payroll area codes to their business name) | B 🔄 pending |
-| Service | `ZTWR_UI_SRVD` (exposes all of the above, 18 entities) + `ZTWR_UI_SRVB_O4` (OData V4 – UI, published, shipped in the repo) | 1–6, 13, B |
+| Interface CDS | `ZI_TWR_WF_AGENT` (anchor, `SWWUSERWI` — inbox owner per work item) | D 🔄 pending |
+| Consumption CDS | `ZC_TWR_WF_THROUGHPUT` (raised/processed by date), `ZC_TWR_WF_BY_AGENT` (pending inbox count per agent), `ZC_TWR_WF_AGING` (open items by raised-date), `ZC_TWR_WF_BY_ACTUAL_AGENT` (processed count per agent, by date) — the Workflow section's date-range analytics | C/D 🔄 pending |
+| Service | `ZTWR_UI_SRVD` (exposes all of the above, 22 entities) + `ZTWR_UI_SRVB_O4` (OData V4 – UI, published, shipped in the repo) | 1–6, 13, B, C, D |
 
 **Retired:** `ZTWR_CFG_IFACE` (table) + `ZI_TWR_CFG_IFACE` + `ZC_TWR_CFG_IFACE`
 — removed from the repo 2026-09-04, client direction (no custom

@@ -18,4 +18,8 @@ define service ZTWR_UI_SRVD {
   expose ZC_TWR_DIM_TEXT            as DimensionText;
   expose ZC_TWR_WORKITEM            as WorkItemSet;
   expose ZC_TWR_WORKITEM_SUMMARY    as WorkItemSummary;
+  expose ZC_TWR_WF_THROUGHPUT       as WorkflowThroughput;
+  expose ZC_TWR_WF_BY_AGENT         as WorkflowByAgent;
+  expose ZC_TWR_WF_AGING            as WorkflowAging;
+  expose ZC_TWR_WF_BY_ACTUAL_AGENT  as WorkflowByActualAgent;
 }
