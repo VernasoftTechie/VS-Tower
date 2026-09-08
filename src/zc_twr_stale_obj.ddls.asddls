@@ -25,11 +25,13 @@ define view entity ZC_TWR_STALE_OBJ
       ObjectName,
 
       @UI.lineItem:       [{ position: 40 }]
-      Package,
+      @EndUserText.label: 'Package'
+      DevClass,
 
       @UI.lineItem:       [{ position: 50 }]
       @UI.selectionField: [{ position: 30 }]
-      Author,
+      @EndUserText.label: 'Author'
+      ObjectAuthor,
 
       @UI.lineItem:       [{ position: 60 }]
       @EndUserText.label: 'Request Owner'
@@ -41,5 +43,10 @@ define view entity ZC_TWR_STALE_OBJ
 
       @UI.lineItem:       [{ position: 80 }]
       @EndUserText.label: 'Request Date (YYYYMMDD)'
-      ChangedOn
+      ChangedOn,
+
+      @UI.lineItem:       [{ position: 90 }]
+      @EndUserText.label: 'Age (days)'
+      AgeInDays
 }
+where AgeInDays >= 180

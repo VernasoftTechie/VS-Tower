@@ -8,6 +8,10 @@
 // is expected). This is the ONE custom entity + query class in an
 // otherwise class-free repo (decision D1 relaxed for this single case).
 //
+// The freestyle SAPUI5 app does not read CDS @UI annotations, so this
+// entity carries plain @EndUserText.label only - no @UI / @ObjectModel
+// element annotations to trip a custom-entity parser.
+//
 // The query class reads SNAP's transparent header fields (when / who /
 // which server / retained flag) and derives a criticality from three
 // signals it CAN see without decompressing the dump payload:
@@ -20,14 +24,12 @@
 
 define custom entity ZC_TWR_SHORTDUMP
 {
-      @UI.lineItem: [{ position: 5, criticality: 'Criticality' }]
       @EndUserText.label: 'Severity'
       SeverityText    : abap.char(12);
 
-  key @EndUserText.label: 'Dump'
-      DumpId          : abap.char(72);
+      @EndUserText.label: 'Dump'
+  key DumpId          : abap.char(72);
 
-      @UI.lineItem: [{ position: 10 }]
       @EndUserText.label: 'When'
       DumpTimestamp   : abap.char(14);
 
@@ -37,19 +39,15 @@ define custom entity ZC_TWR_SHORTDUMP
       @EndUserText.label: 'Time (HHMMSS)'
       DumpTime        : abap.char(6);
 
-      @UI.lineItem: [{ position: 20 }]
       @EndUserText.label: 'User'
       DumpUser        : abap.char(12);
 
-      @UI.lineItem: [{ position: 30 }]
       @EndUserText.label: 'App Server'
       DumpHost        : abap.char(32);
 
-      @UI.lineItem: [{ position: 40 }]
       @EndUserText.label: 'Why Flagged'
       FlagReason      : abap.char(60);
 
-      @UI.lineItem: [{ position: 50 }]
       @EndUserText.label: 'Retained'
       IsRetained      : abap.char(1);
 

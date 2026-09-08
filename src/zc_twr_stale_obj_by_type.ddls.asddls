@@ -19,5 +19,6 @@ define view entity ZC_TWR_STALE_OBJ_BY_TYPE
       @Aggregation.default: #SUM
       cast( count( * ) as abap.int4 )   as ObjectCount
 }
+where AgeInDays >= 180
 group by
   ObjectType

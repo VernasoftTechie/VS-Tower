@@ -44,9 +44,13 @@ before the first activation, not after.
 11. CDS reserved word: `POSITION` (renamed `PositionId` on Employee-360; same
     rule applies here). Also avoid `CLIENT KEY USER LANGUAGE DATE TIME VALUE
     LEVEL NAME TYPE` as element names when in doubt.
-    *Recurred 2026-09-08:* `ZI_TWR_STALE_OBJ` shipped `as4pos as Position` and
-    activation failed system-wide ("POSITION is a reserved word"); fixed to
-    `ItemPos` (commit 5376ce6). Check this list before naming any key element.
+    *Recurred 2026-09-08, three times on the stale-obj views:* `as4pos as
+    Position` → `ItemPos` (5376ce6); `t.devclass as Package` → `DevClass`;
+    `t.author as Author` → `ObjectAuthor` (pre-emptive, AUTHOR not confirmed
+    reserved but not worth a 4th failed pull). **`PACKAGE` and `POSITION` are
+    both hard-reserved.** Rule going forward: **prefix every element name** on
+    a raw-table interface view (`Transport*`, `Object*`, `Dump*`) so a bare
+    keyword collision is impossible.
 12. **No RAP behavior definition in this repo.** VS-Tower is read-only by
     decision (D1) — every `ZC_TWR_*` view is a **plain `select from`** query
     view, never `as projection on`, never a BDEF/behavior pool. This sidesteps
@@ -150,6 +154,18 @@ before the first activation, not after.
     system default). Runtime-error name / short text / program need the ST22
     decompress API and are a deliberate follow-up — v1 classifies on the
     SNAP header fields alone (retained flag, per-user dump count, recency).
+26. **Element annotations go *before* the `key` keyword, never between `key`
+    and the name.** `key @EndUserText.label: 'x' Field` → "Unexpected word @"
+    (custom entity `ZC_TWR_SHORTDUMP`, 2026-09-08). Correct order:
+    `@EndUserText.label: 'x'` newline `key Field : type;`. Also: the freestyle
+    UI never reads CDS `@UI`, so a custom entity here carries `@EndUserText.label`
+    only — no element `@UI`/`@ObjectModel` to widen the parser surface.
+27. **A CDS built-in scalar function (`dats_days_between`, …) in a `WHERE`
+    clause is release-dependent** (added ~7.55). Safe pattern: compute it in
+    the **SELECT list** of the interface view as a plain field, then filter
+    that field (`where AgeInDays >= 180`) in every consumption view — a plain
+    integer comparison, no version risk. `ZI_TWR_STALE_OBJ` does this;
+    `ZC_TWR_STALE_OBJ` / `_BY_OWNER` / `_BY_TYPE` each carry the filter.
 
 ### §1 — Field names verified on this system (safe to reuse)
 

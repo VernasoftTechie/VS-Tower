@@ -14,11 +14,12 @@ define view entity ZC_TWR_STALE_OBJ_BY_OWNER
       @UI.lineItem:       [{ position: 10 }]
       @UI.selectionField: [{ position: 10 }]
       @EndUserText.label: 'Author'
-  key Author,
+  key ObjectAuthor,
 
       @UI.lineItem: [{ position: 20 }]
       @Aggregation.default: #SUM
       cast( count( * ) as abap.int4 )   as ObjectCount
 }
+where AgeInDays >= 180
 group by
-  Author
+  ObjectAuthor

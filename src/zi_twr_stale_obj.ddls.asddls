@@ -9,10 +9,12 @@
 // E071 (object list per request) inner-joined to its E070 header for the
 // date / owner / status, and to TADIR for package + author. Only R3TR (real
 // transportable objects) named Z* / Y*, only modifiable requests (TRSTATUS
-// D or L), only where the request's last-change date (AS4DATE) is 6+ months
-// old (DATS_DAYS_BETWEEN). Every field name here is either already proven
-// (E070, via ZI_TWR_TRANSPORT) or client-confirmed in SE11 (E071 OBJ_NAME
-// etc., TADIR AUTHOR / DEVCLASS / KORRNUM).
+// D or L). The 6-months-old cut is NOT in this view's WHERE - DATS_DAYS_BETWEEN
+// is exposed as AgeInDays in the field list (well-supported there) and every
+// consumption view filters `AgeInDays >= 180`, so the function never sits in a
+// WHERE clause (where its support is release-dependent). Every field name here
+// is either already proven (E070, via ZI_TWR_TRANSPORT) or client-confirmed in
+// SE11 (E071 OBJ_NAME etc., TADIR AUTHOR / DEVCLASS / KORRNUM).
 //
 // Namespaced objects (/xyz/...) are not caught by this first cut. AS4DATE is
 // "last changed" for the request, so a 2-year-old request that had an object
@@ -33,13 +35,13 @@ define view entity ZI_TWR_STALE_OBJ
   key o.as4pos                             as ItemPos,
       o.object                             as ObjectType,
       o.obj_name                           as ObjectName,
-      t.devclass                           as Package,
-      t.author                             as Author,
+      t.devclass                           as DevClass,
+      t.author                             as ObjectAuthor,
       h.as4user                            as TransportOwner,
       h.trstatus                           as RequestStatus,
-      cast( h.as4date as abap.char( 8 ) )  as ChangedOn
+      cast( h.as4date as abap.char( 8 ) )  as ChangedOn,
+      dats_days_between( h.as4date, $session.system_date ) as AgeInDays
 }
 where o.pgmid = 'R3TR'
   and ( h.trstatus = 'D' or h.trstatus = 'L' )
   and ( o.obj_name like 'Z%' or o.obj_name like 'Y%' )
-  and dats_days_between( h.as4date, $session.system_date ) >= 180

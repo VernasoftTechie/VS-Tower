@@ -1099,7 +1099,7 @@ sap.ui.define([
 
       var cleanupList = vm.getProperty("/cleanup/list") || [];
       var cleanupByOwner = (vm.getProperty("/cleanup/byOwner") || []).map(function (r) {
-        return { owner: r.Author || "(no author)", open: this._num(r.ObjectCount), released: 0 };
+        return { owner: r.ObjectAuthor || "(no author)", open: this._num(r.ObjectCount), released: 0 };
       }.bind(this)).sort(function (a, b) { return b.open - a.open; });
       var cleanupTotal = cleanupByOwner.reduce(function (t, r) { return t + r.open; }, 0);
       var cleanupByType = (vm.getProperty("/cleanup/byType") || []).map(function (r) {
@@ -1109,7 +1109,7 @@ sap.ui.define([
       var cleanupRows = cleanupList.slice().sort(function (a, b) {
         return String(a.ChangedOn || "").localeCompare(String(b.ChangedOn || ""));
       }).map(function (r) {
-        return [esc(r.ObjectType), esc(r.ObjectName), esc(r.Package), esc(r.Author),
+        return [esc(r.ObjectType), esc(r.ObjectName), esc(r.DevClass), esc(r.ObjectAuthor),
           esc(r.TransportRequest), esc(this._fmtYmd(r.ChangedOn))];
       }.bind(this));
       var cleanupCols = [this._i18n.getText("colType"), this._i18n.getText("colObject"), this._i18n.getText("colPackage"),
