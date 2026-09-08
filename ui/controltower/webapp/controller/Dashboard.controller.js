@@ -49,7 +49,9 @@ sap.ui.define([
           raised: 0, processed: 0
         },
         cleanup: { byOwner: [], byType: [], list: [] },
+        stability: { list: [] },
         liveHtml: "",
+        stabilityHtml: "",
         workflowHtml: "",
         cleanupHtml: "",
         workforceHtml: "",
@@ -207,6 +209,10 @@ sap.ui.define([
         '<ul>',
         '<li><b>Live</b> – current-state cards. Refreshes itself every 5 seconds',
         ' (the switch in the top bar pauses it). Use this for "what needs a look right now".</li>',
+        '<li><b>System Stability</b> – ABAP short dumps (ST22) from the last 7 days.',
+        ' Read live off the runtime-error store; it is checked roughly once a minute',
+        ' rather than every 5 seconds. A dump is flagged <b>critical</b> if an admin',
+        ' retained it in ST22, or the same user hit 3+ dumps in the window.</li>',
         '<li><b>Workflow</b> – approvals and work items. Pick a <b>date range</b>',
         ' at the top of the section (defaults to the last 30 days); the',
         ' throughput and "cleared by agent" cards recalculate for that window.',
@@ -239,6 +245,7 @@ sap.ui.define([
         this._helpRow("Workflow – Pending by Approver", "Whose inbox the open items sit in, as of now. An item offered to several people counts for each of them."),
         this._helpRow("Workflow – Backlog Aging", "The current open queue split by age: 0–7 days / 8–30 / 30+. The 30+ slice is the one to watch."),
         this._helpRow("Workflow – Cleared by Agent", "Who completed the most work items inside the chosen date range."),
+        this._helpRow("Short Dumps", "ABAP runtime errors (ST22) from the last 7 days, worst first. The drill-down gives you the time, the user and the server so you know whose code to chase. Runtime-error name and short text are a later addition."),
         this._helpRow("Stale Objects by Owner", "Custom objects stuck in an unreleased 6+ month-old transport, grouped by author – who has the most to clean up."),
         this._helpRow("Stale Objects by Type", "The same objects by kind (programs / classes / DDIC / ...)."),
         this._helpRow("Headcount by Company / by Employee Group / Payroll Areas", "Where the workforce sits. Context, not alerts – these cards never pulse."),
@@ -257,6 +264,9 @@ sap.ui.define([
         '<ul>',
         '<li><b>Business names for more codes</b> – cost centre and org unit',
         ' (company code, employee group and payroll area already show their name).</li>',
+        '<li><b>Short-dump detail</b> – the runtime-error name, short text and',
+        ' program (needs the ST22 decompress API; the card shows time / user /',
+        ' server today).</li>',
         '<li><b>Interfaces and other areas</b> – planned for a later phase.</li>',
         '</ul>',
 
@@ -298,7 +308,8 @@ sap.ui.define([
       return Promise.all([
         this._loadSecurity(),
         this._loadJobs(),
-        this._loadTransport()
+        this._loadTransport(),
+        this._maybeLoadStability()
       ]).catch(function (e) {
         this._setError((e && e.message) || String(e));
       }.bind(this)).then(function () {
@@ -325,6 +336,29 @@ sap.ui.define([
         this._setError((e && e.message) || String(e));
       }.bind(this)).then(function () {
         this._renderAll();
+      }.bind(this));
+    },
+
+    // System Stability - ABAP short dumps (ST22). Backed by a RAP custom
+    // entity + query class (ZCL_TWR_SHORTDUMP_QRY) because SNAP is a
+    // clustered table no CDS can read. Reading it hits an ABAP loop over
+    // SNAP, so this is throttled to once a minute rather than every 5s tick.
+    _maybeLoadStability: function () {
+      var now = Date.now();
+      if (this._stabilityNextFetch && now < this._stabilityNextFetch) {
+        return Promise.resolve();
+      }
+      this._stabilityNextFetch = now + 60000;
+      return this._loadStability();
+    },
+
+    _loadStability: function () {
+      return this._read("/ShortDump", 300).then(function (rows) {
+        this._vm.setProperty("/stability/list", rows);
+      }.bind(this)).catch(function () {
+        // A dump-reader hiccup must not break the Live refresh - keep the
+        // last list and let the next tick retry.
+        this._stabilityNextFetch = 0;
       }.bind(this));
     },
 
@@ -376,6 +410,14 @@ sap.ui.define([
     _fmtYmd: function (s) {
       s = String(s || "");
       return s.length === 8 ? s.slice(0, 4) + "-" + s.slice(4, 6) + "-" + s.slice(6, 8) : "-";
+    },
+
+    // "20260908143512" (YYYYMMDDHHMMSS) -> "2026-09-08 14:35"
+    _fmtTstamp: function (s) {
+      s = String(s || "");
+      if (s.length < 12) { return this._fmtYmd(s); }
+      return s.slice(0, 4) + "-" + s.slice(4, 6) + "-" + s.slice(6, 8) + " " +
+        s.slice(8, 10) + ":" + s.slice(10, 12);
     },
 
     _daysBetween: function (sYmd, oNow) {
@@ -604,6 +646,16 @@ sap.ui.define([
           status: TR_STATUS_LABEL[t.RequestStatus] || t.RequestStatus,
           criticality: this._num(t.StatusCriticality) || 2,
           contact: t.Owner || "-"
+        });
+      }.bind(this));
+
+      (vm.getProperty("/stability/list") || []).forEach(function (d) {
+        if (this._num(d.Criticality) !== 1) { return; }
+        aItems.push({
+          domain: "Short Dumps", item: d.RuntimeError || this._fmtTstamp(d.DumpTimestamp),
+          detail: (d.FlagReason || "Short dump") + " - user " + this._agentDisplay(d.DumpUser),
+          status: d.SeverityText || "Critical", criticality: 1,
+          contact: this._agentDisplay(d.DumpUser) + " / Basis"
         });
       }.bind(this));
 
@@ -929,6 +981,53 @@ sap.ui.define([
         }.bind(this))
       });
 
+      // --- System Stability section (1 card) ---
+
+      var dumps = vm.getProperty("/stability/list") || [];
+      var dumpsBySeverity = [
+        { name: "Critical", value: 0 },
+        { name: "Warning", value: 0 },
+        { name: "Info", value: 0 }
+      ];
+      dumps.forEach(function (d) {
+        var c = this._num(d.Criticality);
+        dumpsBySeverity[c === 1 ? 0 : c === 2 ? 1 : 2].value += 1;
+      }.bind(this));
+      var dumpsCritical = dumpsBySeverity[0].value;
+      var dumpsByUser = this._ownerAgg(dumps, "DumpUser");
+
+      var dumpRows = dumps.slice().sort(function (a, b) {
+        var byCrit = this._num(a.Criticality) - this._num(b.Criticality);
+        return byCrit !== 0 ? byCrit
+          : String(b.DumpTimestamp || "").localeCompare(String(a.DumpTimestamp || ""));
+      }.bind(this)).map(function (d) {
+        return [
+          esc(this._fmtTstamp(d.DumpTimestamp)),
+          esc(this._agentDisplay(d.DumpUser)),
+          esc(d.DumpHost),
+          this._statusChip(this._num(d.Criticality), d.SeverityText),
+          esc(d.FlagReason),
+          d.IsRetained === "X" ? this._i18n.getText("yes") : this._i18n.getText("no")
+        ];
+      }.bind(this));
+
+      cards.push({
+        section: "stability", id: "dumps", attn: dumpsCritical > 0,
+        title: this._i18n.getText("cardDumps"), sub: this._i18n.getText("cardDumpsSub"),
+        kpi: dumpsCritical, kpiLabel: this._i18n.getText("kpiDumps"),
+        chartType: "donut", data: dumpsBySeverity,
+        insight: dumps.length === 0
+          ? "No short dumps in the last 7 days."
+          : dumpsCritical > 0
+            ? "<b>" + dumpsCritical + "</b> critical of " + dumps.length + " dumps in the last 7 days"
+              + (dumpsByUser.length ? " - most from <b>" + esc(dumpsByUser[0].owner) + "</b>." : ".")
+            : dumps.length + " dumps in the last 7 days, none flagged critical.",
+        detailCols: [this._i18n.getText("colWhen"), this._i18n.getText("colUsername"),
+          this._i18n.getText("colAppServer"), this._i18n.getText("colStatus"),
+          this._i18n.getText("colReason"), this._i18n.getText("colRetained")],
+        detailRows: dumpRows
+      });
+
       // --- Workflow date-range section (5 cards) ---
 
       cards.push({
@@ -1087,6 +1186,7 @@ sap.ui.define([
       }.bind(this);
 
       this._vm.setProperty("/liveHtml", bySection("live"));
+      this._vm.setProperty("/stabilityHtml", bySection("stability"));
       this._vm.setProperty("/workflowHtml", bySection("workflow"));
       this._vm.setProperty("/cleanupHtml", bySection("cleanup"));
       this._vm.setProperty("/workforceHtml", bySection("workforce"));

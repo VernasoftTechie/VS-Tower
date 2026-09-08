@@ -108,14 +108,18 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
 | Consumption CDS | `ZC_TWR_WF_THROUGHPUT` (raised/processed by date), `ZC_TWR_WF_BY_AGENT` (pending inbox count per agent), `ZC_TWR_WF_AGING` (open items by raised-date), `ZC_TWR_WF_BY_ACTUAL_AGENT` (processed per agent by date) | C/D ✅ |
 | Interface CDS | `ZI_TWR_STALE_OBJ` (`E071` ⋈ `E070` ⋈ `TADIR` — custom Z*/Y* R3TR objects in a modifiable transport 6+ months old) | E 🔄 pending |
 | Consumption CDS | `ZC_TWR_STALE_OBJ` (list), `ZC_TWR_STALE_OBJ_BY_OWNER` / `ZC_TWR_STALE_OBJ_BY_TYPE` (GROUP BY) — the Custom Code Cleanup section | E 🔄 pending |
-| Service | `ZTWR_UI_SRVD` (23 entities) + `ZTWR_UI_SRVB_O4` (OData V4 – UI, published) | all |
+| Custom entity + class | `ZC_TWR_SHORTDUMP` (RAP custom entity) + `ZCL_TWR_SHORTDUMP_QRY` (`IF_RAP_QUERY_PROVIDER`) — ABAP short dumps (`SNAP`, unreadable by CDS); read-only, the **only** ABAP class in the repo (D1 relaxed once) | F 🔄 pending |
+| Service | `ZTWR_UI_SRVD` (24 entities) + `ZTWR_UI_SRVB_O4` (OData V4 – UI, published) | all |
 
 **Retired:**
 - `ZTWR_CFG_IFACE` + `ZI_TWR_CFG_IFACE` + `ZC_TWR_CFG_IFACE` — 2026-09-04, no custom config/catalog tables (D9).
 - **Data Quality (2026-09-08)** — `ZI_TWR_DQ_ISSUE`, `ZC_TWR_DQ_ISSUE`, `ZC_TWR_DQ_SUMMARY`, and the DQ-only helpers `ZI_TWR_EMP_CONTACT` / `ZI_TWR_EMP_BANK` / `ZI_TWR_EMP_DUP_KEY`. Employee master-data health is owned by **Employee 360** now; keeping the same checks here was duplication. `ZI_TWR_EMP_BASIC` was trimmed to just the org fields the Workforce cards use (the `PA0002` join and `CostCenter`/`PositionId` are gone). A pull should offer to delete the retired objects from the target system.
 
-No RAP behavior definition, no custom DDIC tables, no DCL — every object is a
-plain `define view entity … as select from`.
+No RAP behavior definition, no custom DDIC tables, no DCL. Every CDS object is a
+plain `define view entity … as select from`. The single exception is
+`ZC_TWR_SHORTDUMP` — a `define custom entity` whose query is implemented by
+`ZCL_TWR_SHORTDUMP_QRY` (read-only `IF_RAP_QUERY_PROVIDER`, added 2026-09-08
+because `SNAP` is a clustered table Open SQL / CDS cannot read).
 
 ## ABAP/CDS layer: one small increment pending, everything else confirmed clean
 

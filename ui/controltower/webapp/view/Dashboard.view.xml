@@ -51,6 +51,13 @@
       </Toolbar>
       <core:HTML content="{/liveHtml}" sanitizeContent="false"/>
 
+      <!-- System Stability section - ABAP short dumps (ST22) -->
+      <Toolbar design="Transparent" class="ctSectionBar sapUiMediumMarginTop">
+        <Title text="{i18n>sectionStability}" level="H3"/>
+        <Text text="{i18n>sectionStabilityHint}" class="ctSectionHint sapUiSmallMarginBegin"/>
+      </Toolbar>
+      <core:HTML content="{/stabilityHtml}" sanitizeContent="false"/>
+
       <!-- Workflow section -->
       <Toolbar design="Transparent" class="ctSectionBar sapUiMediumMarginTop">
         <Title text="{i18n>sectionWorkflow}" level="H3"/>

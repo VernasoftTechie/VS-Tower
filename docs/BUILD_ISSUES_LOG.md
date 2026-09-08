@@ -133,6 +133,23 @@ before the first activation, not after.
     mapping only (`USER_ID`, `WI_ID`, plus some denormalised header copies —
     but *not* `WI_STAT`, T5). Join to `SWWWIHEAD` (or `ZI_TWR_WORKITEM`) for
     the status.
+25. **The ONE ABAP class** (decision D1 relaxed 2026-09-08). `SNAP` (ABAP
+    short dumps) is a clustered runtime-error store — no Open SQL / SE16N /
+    CDS view can read it ("You cannot display SNAP with the standard tools"
+    is the *expected* message). The "System Stability" card is therefore a
+    RAP **custom entity** `ZC_TWR_SHORTDUMP` + query class
+    `ZCL_TWR_SHORTDUMP_QRY` (`IF_RAP_QUERY_PROVIDER`). Rules for this one
+    exception: read-only, no `MODIFY`/`UPDATE`/`INSERT` anywhere; the whole
+    `SELECT FROM snap` is wrapped in `TRY … CATCH cx_root` so a reader failure
+    (incl. missing table authorisation) yields an **empty card, never a 500**;
+    the class does its own paging off `io_request->get_paging( )`. Activation
+    order: custom entity first (annotation-only, activates with a warning
+    while the class is missing) → class → re-activate the entity. The
+    `.ddls.xml` for a custom entity uses `<SOURCE_TYPE>C</SOURCE_TYPE>`
+    (unverified — if abapGit import rejects it, drop the element and let the
+    system default). Runtime-error name / short text / program need the ST22
+    decompress API and are a deliberate follow-up — v1 classifies on the
+    SNAP header fields alone (retained flag, per-user dump count, recency).
 
 ### §1 — Field names verified on this system (safe to reuse)
 
@@ -154,6 +171,7 @@ in this table is unverified on this system — check SE11 before using it.
 | `SWWWIHEAD` | `WI_ID WI_TYPE WI_STAT` — **confirmed clean** (T4 was an EDM naming collision, not a field problem). **2026-09-07, client verified in SE11 before use:** `WI_TEXT` (description), `WI_CD` (creation date), `WI_AED` (last-change date), `WI_AAGENT` ("Actual Agent of Work Item"). Dates exposed as blank-safe **text** (the T2 fix) so date-range `$filter` is a YYYYMMDD string compare. `WI_AAGENT` format may be the 14-char prefixed org-object form (`US<username>`) rather than a bare name — the UI strips a leading `US`. **Pending first activation** of the extended `ZI_TWR_WORKITEM`. |
 | `SWWUSERWI` | **2026-09-07, client verified in SE11:** `USER_ID` (inbox owner, bare username), `WI_ID` (work-item link), `WI_STAT` (denormalised status — no join to `SWWWIHEAD` needed for the pending-by-agent count). An item in several inboxes has several rows — intended ("consider all the users"). `'COMPLETED'`/`'CANCELLED'` used in `WHERE` are real `WI_STAT` values seen in the live data, not guesses. **Pending first activation** of `ZI_TWR_WF_AGENT` / `ZC_TWR_WF_BY_AGENT`. |
 | `ZC_TWR_TRANSPORT_BY_OWNER` (2026-09-05) | No new table/fields — groups `ZI_TWR_TRANSPORT`'s already-confirmed `Owner`/`RequestStatus` (both clean since Stage 4), same 2-dimension `GROUP BY` shape already proven by `ZC_TWR_WORKITEM_SUMMARY`. Zero new field-name risk; **pending activation** like everything new in this round. |
+| `SNAP` (2026-09-08, `ZCL_TWR_SHORTDUMP_QRY`) | Read in ABAP, not CDS (clustered table). Fields the query class reads: `DATUM UZEIT UNAME AHOST XHOLD` (dump date / time / user / app server / "retained in ST22" flag), filtered `DATUM >= today-7`. **All unverified** — this is the first read of `SNAP` on this system. If activation or runtime flags one, it is a straight rename in `build_list( )`; the `TRY … CATCH` means a wrong name degrades to an empty card, not a dump. `SNAP` being a genuine transparent table on this S/4 release (vs. a real cluster on old ECC) is itself the assumption to confirm. |
 | `T001` / `T500P` / `T501T` / `T549T` (2026-09-07, `ZC_TWR_DIM_TEXT`) | Standard org/config text tables — **not** HR infotype text tables, so lower A10 risk. Fields used: `T001-BUKRS`/`BUTXT`, `T500P-PERSA`/`NAME1`, `T501T-PERSG`/`PTEXT`/`SPRSL`, `T549T-ABKRS`/`ATEXT`/`SPRSL`. Language-dependent branches filter `sprsl = $session.system_language`. **Pending first activation** — if `T500P-NAME1` is the wrong text field (the one I'm least sure of), that branch fails and gets fixed forward; the other three are near-certain. |
 
 ---

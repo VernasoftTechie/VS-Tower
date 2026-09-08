@@ -23,4 +23,5 @@ define service ZTWR_UI_SRVD {
   expose ZC_TWR_STALE_OBJ           as StaleObject;
   expose ZC_TWR_STALE_OBJ_BY_OWNER  as StaleObjectByOwner;
   expose ZC_TWR_STALE_OBJ_BY_TYPE   as StaleObjectByType;
+  expose ZC_TWR_SHORTDUMP           as ShortDump;
 }
