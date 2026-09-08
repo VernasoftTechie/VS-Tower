@@ -24,11 +24,11 @@
 
 define custom entity ZC_TWR_SHORTDUMP
 {
-      @EndUserText.label: 'Severity'
-      SeverityText    : abap.char(12);
-
       @EndUserText.label: 'Dump'
   key DumpId          : abap.char(72);
+
+      @EndUserText.label: 'Severity'
+      SeverityText    : abap.char(12);
 
       @EndUserText.label: 'When'
       DumpTimestamp   : abap.char(14);

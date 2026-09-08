@@ -41,16 +41,15 @@ before the first activation, not after.
 10. **Don't invent HR text-table field names.** Expose raw codes from the
     infotype tables only. Every field name in this repo's CDS must be one we
     have actually verified (see §1 table below) — don't guess.
-11. CDS reserved word: `POSITION` (renamed `PositionId` on Employee-360; same
-    rule applies here). Also avoid `CLIENT KEY USER LANGUAGE DATE TIME VALUE
-    LEVEL NAME TYPE` as element names when in doubt.
-    *Recurred 2026-09-08, three times on the stale-obj views:* `as4pos as
-    Position` → `ItemPos` (5376ce6); `t.devclass as Package` → `DevClass`;
-    `t.author as Author` → `ObjectAuthor` (pre-emptive, AUTHOR not confirmed
-    reserved but not worth a 4th failed pull). **`PACKAGE` and `POSITION` are
-    both hard-reserved.** Rule going forward: **prefix every element name** on
-    a raw-table interface view (`Transport*`, `Object*`, `Dump*`) so a bare
-    keyword collision is impossible.
+11. **CDS reserved words — `POSITION` and `PACKAGE` are both hard-reserved**
+    (activation dies "X is a reserved word (choose another field name)"), and
+    so are `CLIENT KEY USER LANGUAGE DATE TIME VALUE LEVEL NAME TYPE` and more.
+    Rather than check names against a list that has already burned us twice
+    (T7 `Position`, T8 `Package`), **prefix every element on a raw-table
+    interface view** — `TransportRequest` not `Request`, `ObjectType` not
+    `Type`, `ObjectAuthor` not `Author`, `DumpUser` not `User`. A prefixed
+    compound name cannot collide with a bare keyword. (Employee-360 hit the
+    same on `POSITION` → `PositionId`.)
 12. **No RAP behavior definition in this repo.** VS-Tower is read-only by
     decision (D1) — every `ZC_TWR_*` view is a **plain `select from`** query
     view, never `as projection on`, never a BDEF/behavior pool. This sidesteps
@@ -166,6 +165,24 @@ before the first activation, not after.
     that field (`where AgeInDays >= 180`) in every consumption view — a plain
     integer comparison, no version risk. `ZI_TWR_STALE_OBJ` does this;
     `ZC_TWR_STALE_OBJ` / `_BY_OWNER` / `_BY_TYPE` each carry the filter.
+28. **`define custom entity` rules** (the ONE in this repo, `ZC_TWR_SHORTDUMP`;
+    T9 + T10). Different from a view entity:
+    - **The first listed element must be the `key`** ("The first field must be
+      a key field" otherwise). View entities don't require this; custom
+      entities do.
+    - Element annotations go **before** the `key` keyword, never between `key`
+      and the name (`@EndUserText.label: 'x'` on its own line, *then*
+      `key DumpId : abap.char(72);`).
+    - Fields end with **`;`** (not `,` like a view entity), each `Name : type;`,
+      **no `as` alias**, primitive types only (`abap.char(n)` / `abap.int4` /
+      `abap.dats` …).
+    - Carry **`@EndUserText.label` only** — the freestyle UI never reads CDS
+      `@UI` / `@ObjectModel` element annotations, so they are pure parser risk.
+    - Entity level: `@EndUserText.label` + `@ObjectModel.query.implementedBy:
+      'ABAP:<CLASS>'`. Activation order: entity first (activates with a warning
+      while the class is missing) → class → re-activate entity.
+    - `.ddls.xml` `<SOURCE_TYPE>` for a custom entity: tried `C` — **unverified**,
+      drop the element if abapGit import rejects it.
 
 ### §1 — Field names verified on this system (safe to reuse)
 
@@ -201,7 +218,12 @@ in this table is unverified on this system — check SE11 before using it.
 | T3 | 🟡 **Fiori preview** (`InterfaceCatalog`): filter bar and column headers show "Char20", "Char", "Branching name", "Checkbox" instead of business labels | `ZI_TWR_CFG_IFACE` selected the table's fields with no `@EndUserText.label` override, so Fiori fell back to each field's underlying data-element label. `IFACE_OWNER`'s rollname `BNAME` — reused from `USR02-BNAME`, proven safe as a raw **select source** in Stage 2 — resolved to **"Branching name"** as a rollname on this new table, not the expected username label. (0 rows itself is correct — the table ships empty — that part was never a bug.) | `ztwr_cfg_iface.tabl.xml`: `IFACE_OWNER` rollname changed `BNAME` → `CHAR40` (it holds free text like "SAP Basis Team", not a real username anyway). `ZI_TWR_CFG_IFACE`: every element now carries its own explicit `@EndUserText.label`, which wins regardless of the underlying data element. | 232e94a — confirmed clean; object itself **later retired entirely** (D9, `d1329d1`) so this fix is now moot, kept for the historical record |
 | T4 | 🔴 **Fiori preview** (`WorkItemSet`/`WorkItemSummary`): blank screen — "Application could not be started due to technical issues. Property 'WorkItemType' has the same EDM name as entity type 'WorkItemType'." | Exact repeat of Employee-360's own A27: OData V4 names the entity **type** for an exposed set `<Name>` as `<Name>Type`. Set `WorkItem` → type `WorkItemType` → collides with the property literally named `WorkItemType` on the same view. Already a known rule (§0.22 existed in spirit before this) — just not checked against this specific new entity before the first pull. | `ztwr_ui_srvd.srvd.srvdsrv`: renamed the exposed set `WorkItem` → `WorkItemSet` (same fix already used for `TransportRequestSet`). No CDS change needed — property names stay as they are. | c7f26e0 — **confirmed clean**, client verified the whole ABAP/CDS layer end-to-end |
 | T5 | 🔴 **Activation** (`ZI_TWR_WF_AGENT`): "The column WI_STAT is unknown" | `SWWUSERWI` has `USER_ID` and `WI_ID` but **no status column** — it's just the inbox mapping. The status lives on `SWWWIHEAD`. (Client had confirmed `WI_STAT` exists — on `SWWWIHEAD`, which is correct there.) | `ZI_TWR_WF_AGENT` now `select from swwuserwi inner join ZI_TWR_WORKITEM on WorkItemId = wi_id`, taking `Status` from the join — which also reuses `ZI_TWR_WORKITEM`'s defensive `WI_STAT` cast. `WI_ID` is `SWWWIHEAD`'s primary key so the join is 1:1, no row multiplication. | *(fix pushed, pending re-pull)* |
-| T6 | 🔴 **Activation** (`ZC_TWR_DIM_TEXT`): "Annotation Metadata.ignorePropagatedAnnotations is required." | A view that `select`s straight from database tables (not from another CDS entity) must declare `@Metadata.ignorePropagatedAnnotations: true` — it's the interface-view marker. `ZC_TWR_DIM_TEXT` was a single view doing both jobs (UNION over `T001`/`T500P`/`T501T`/`T549T` **and** OData exposure) with the wrong metadata annotation (`allowExtensions`). | Split into the repo's standard ZI/ZC pair: **`ZI_TWR_DIM_TEXT`** (the UNION, `ignorePropagatedAnnotations`) + **`ZC_TWR_DIM_TEXT`** (plain projection for exposure, `allowExtensions` + `@UI`). New checklist item §0.23. | *(fix pushed, pending re-pull)* |
+| T6 | 🔴 **Activation** (`ZC_TWR_DIM_TEXT`): "Annotation Metadata.ignorePropagatedAnnotations is required." | A view that `select`s straight from database tables (not from another CDS entity) must declare `@Metadata.ignorePropagatedAnnotations: true` — it's the interface-view marker. `ZC_TWR_DIM_TEXT` was a single view doing both jobs (UNION over `T001`/`T500P`/`T501T`/`T549T` **and** OData exposure) with the wrong metadata annotation (`allowExtensions`). | Split into the repo's standard ZI/ZC pair: **`ZI_TWR_DIM_TEXT`** (the UNION, `ignorePropagatedAnnotations`) + **`ZC_TWR_DIM_TEXT`** (plain projection for exposure, `allowExtensions` + `@UI`). New checklist item §0.23. | 9341e3f — **confirmed clean**, client verified |
+| T7 | 🔴 **Activation** (`ZI_TWR_STALE_OBJ` + every `ZC_TWR_STALE_OBJ*` cascading "does not exist or is not active"): "POSITION is a reserved word (choose another field name)" | `key o.as4pos as Position` — `POSITION` is a hard-reserved CDS/DDL word. Checklist rule #11 already listed it (learned on Employee-360) — it was written and pushed without checking that list. | `as4pos` exposed as **`ItemPos`**. | 5376ce6 — pushed, then T8 hit the same class |
+| T8 | 🔴 **Activation** (same views, next pull): "PACKAGE is a reserved word (choose another field name)" | `t.devclass as Package` — `PACKAGE` is *also* hard-reserved; it was not in checklist rule #11's example list, so the same-round audit that should have caught it after T7 didn't. | `devclass` → **`DevClass`**; `t.author` → **`ObjectAuthor`** pre-emptively. Rule #11 rewritten: **prefix every element on a raw-table interface view** so a bare-keyword collision is structurally impossible. | 1cc7911 |
+| T9 | 🔴 **Activation** (`ZC_TWR_SHORTDUMP`): "Unexpected word \"@\"" | In the custom entity the `@EndUserText.label` annotation sat **between** the `key` keyword and the field name (`key @EndUserText.label: 'x'` newline `DumpId ...`). Annotations must come **before** `key`. | Reordered: annotation line, then `key DumpId : abap.char(72);`. Also stripped every element `@UI` from the custom entity (the freestyle app never reads CDS `@UI` — pure parser surface). New checklist item #26. | 1cc7911 → still failed on T10 |
+| T10 | 🔴 **Activation** (`ZC_TWR_SHORTDUMP`): "The first field must be a key field" | A CDS **custom entity** (unlike a view entity) requires its **first** listed element to be the `key`. `SeverityText` was listed first, `key DumpId` second. | `key DumpId` moved to the top of the field list. New checklist item #28. | *(fix pushed, pending re-pull)* |
+| T11 | 🟡 **Activation** (`ZI_TWR_STALE_OBJ`, pre-emptive — never actually hit): `dats_days_between( … ) >= 180` in a CDS `WHERE` | Support for a CDS built-in scalar function inside `WHERE` (vs. the SELECT list) is release-dependent (~7.55+). Flagged as the one unknown on the stale-obj views since they were written. | Moved out of `WHERE`: `dats_days_between` is now `AgeInDays` in `ZI_TWR_STALE_OBJ`'s field list; `ZC_TWR_STALE_OBJ` / `_BY_OWNER` / `_BY_TYPE` each filter `where AgeInDays >= 180` (plain integer compare). New checklist item #27. | 1cc7911 |
 
 **Stage 2 result: confirmed after T1.** `SecurityUser` preview renders —
 4,860 users, `UserType` showing `A` (cast fixed it), `IsLocked` criticality
