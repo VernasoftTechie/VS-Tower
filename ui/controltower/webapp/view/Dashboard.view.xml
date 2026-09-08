@@ -51,10 +51,25 @@
       </Toolbar>
       <core:HTML content="{/liveHtml}" sanitizeContent="false"/>
 
-      <!-- System Stability section - ABAP short dumps (ST22) -->
-      <Toolbar design="Transparent" class="ctSectionBar sapUiMediumMarginTop">
-        <Title text="{i18n>sectionStability}" level="H3"/>
-        <Text text="{i18n>sectionStabilityHint}" class="ctSectionHint sapUiSmallMarginBegin"/>
+      <!-- Short Dumps - part of the Live section, own date + user filter -->
+      <Toolbar design="Transparent" class="ctSubBar sapUiSmallMarginTop">
+        <Label text="{i18n>sdFilterLabel}" class="ctSectionHint"/>
+        <DateRangeSelection
+          dateValue="{/meta/sdFrom}"
+          secondDateValue="{/meta/sdTo}"
+          displayFormat="yyyy-MM-dd"
+          change=".onStabilityRangeChange"
+          class="ctWfRange"/>
+        <Input
+          value="{/meta/sdUser}"
+          placeholder="{i18n>sdUserPlaceholder}"
+          width="12rem"
+          submit=".onStabilityUserChange"
+          change=".onStabilityUserChange"/>
+        <ToolbarSpacer/>
+        <Text text="{i18n>lastUpdated}" class="ctSectionStamp"/>
+        <Text text="{/meta/stabilityUpdatedText}" class="ctSectionStamp sapUiTinyMarginBegin sapUiTinyMarginEnd"/>
+        <Button icon="sap-icon://refresh" tooltip="{i18n>refreshStability}" press=".onRefreshStability"/>
       </Toolbar>
       <core:HTML content="{/stabilityHtml}" sanitizeContent="false"/>
 

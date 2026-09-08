@@ -405,3 +405,65 @@ table.detail tr:last-child td { border-bottom: none; }
 .ctHelp li { margin: 3px 0; }
 .ctHelp table.detail { margin: 4px 0 8px; }
 .ctHelp .status-chip { text-transform: none; }
+
+/* ---------------------------------------------------------------------
+   Short Dumps - filter sub-bar (inside the Live section) + recent list
+   ------------------------------------------------------------------- */
+.ctSubBar {
+  border-bottom: 1px dashed var(--sapList_BorderColor, #e2e7ec);
+  padding-bottom: 4px;
+  margin-top: 10px;
+}
+
+/* Recent-dumps card: one compact row per dump, severity dot + time + user
+   + the runtime error. Scrolls inside the card, never pushes it taller. */
+.ct-dumplist {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  max-height: 190px;
+  overflow-y: auto;
+}
+.ct-dumplist-empty {
+  font-size: 0.75rem;
+  color: var(--sapContent_LabelColor, var(--sapNeutralColor));
+  padding: 8px 0;
+}
+.dl-row {
+  display: grid;
+  grid-template-columns: 8px 92px 84px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  font-size: 0.7rem;
+  line-height: 1.25;
+  padding: 2px 0;
+  border-bottom: 1px solid var(--sapList_BorderColor, #eef2f6);
+}
+.dl-row:last-child { border-bottom: 0; }
+.dl-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.dl-dot.chip-crit { background: var(--sapNegativeColor, #bb0000); }
+.dl-dot.chip-warn { background: var(--sapCriticalColor, #e9730c); }
+.dl-dot.chip-good { background: var(--sapPositiveColor, #107e3e); }
+.dl-when {
+  font-variant-numeric: tabular-nums;
+  color: var(--sapContent_LabelColor, var(--sapNeutralColor));
+}
+.dl-who {
+  font-weight: 600;
+  color: var(--sapTextColor);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dl-what {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--sapTextColor);
+}

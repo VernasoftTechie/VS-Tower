@@ -26,6 +26,30 @@ sap.ui.define([
   // docs/04_fiori_ui_design.md.
   var TR_STATUS_LABEL = { D: "Modifiable", R: "Released" };
 
+  // R3TR repository object types -> plain description. These 4-char codes are
+  // utterly stable across SAP releases, so a fixed map is safer than a
+  // text-table join (no field-name risk, no extra CDS). Falls back to the
+  // raw code for anything not listed.
+  var OBJ_TYPE_TEXT = {
+    PROG: "Program", REPS: "Program Source", CLAS: "Class", INTF: "Interface",
+    FUGR: "Function Group", FUGS: "Function Group", FUNC: "Function Module",
+    METH: "Method", TABL: "Table / Structure", VIEW: "Database View",
+    DTEL: "Data Element", DOMA: "Domain", TTYP: "Table Type", SHLP: "Search Help",
+    ENQU: "Lock Object", INDX: "Table Index", SQLT: "DB Table (technical)",
+    MSAG: "Message Class", TRAN: "Transaction", PARA: "Parameter ID",
+    DEVC: "Package", DDLS: "CDS View", DDLX: "Metadata Extension",
+    DCLS: "Access Control (DCL)", SRVD: "Service Definition", SRVB: "Service Binding",
+    BDEF: "Behavior Definition", NROB: "Number Range Object", AUTH: "Auth. Field",
+    SUSO: "Authorization Object", SUSC: "Auth. Object Class", SICF: "ICF Service Node",
+    IWSV: "OData Service (GW)", IWSG: "OData Service Group", IWMO: "OData Model",
+    IWVB: "OData Vocabulary", IWPR: "OData Project", IARP: "OData Reg. (project)",
+    WDYN: "Web Dynpro Comp.", WDYA: "Web Dynpro Appl.", WAPA: "BSP Application",
+    SMTG: "SmartForms Text", SSFO: "Smart Form", FORM: "SAPscript Form",
+    STYL: "SAPscript Style", SOBJ: "Business Object", SCP1: "Cross-App Component",
+    XSLT: "Transformation", TYPE: "Type Pool", G4BA: "OData V4 Binding",
+    G4BS: "OData V4 Service", DRUL: "Derivation Rule", ECAT: "eCATT Test"
+  };
+
   return Controller.extend("vstower.controltower.controller.Dashboard", {
 
     // ===================================================================
@@ -38,6 +62,9 @@ sap.ui.define([
       var oNow = new Date();
       this._wfTo = oNow;
       this._wfFrom = new Date(oNow.getTime() - 30 * 86400000);
+      // Short Dumps sub-filter (inside the Live section) - default last 7 days.
+      this._sdTo = oNow;
+      this._sdFrom = new Date(oNow.getTime() - 7 * 86400000);
       this._vm = new JSONModel({
         security: { lockedUsers: [] },
         jobs: { health: [], byStatus: [] },
@@ -57,7 +84,9 @@ sap.ui.define([
         workforceHtml: "",
         meta: {
           autoRefresh: true, liveUpdatedText: "", workflowUpdatedText: "",
-          wfFrom: this._wfFrom, wfTo: this._wfTo
+          stabilityUpdatedText: "",
+          wfFrom: this._wfFrom, wfTo: this._wfTo,
+          sdFrom: this._sdFrom, sdTo: this._sdTo, sdUser: ""
         }
       });
       this.getView().setModel(this._vm);
@@ -108,6 +137,28 @@ sap.ui.define([
       this._wfFrom = oFrom;
       this._wfTo = oTo;
       this._loadWorkflowSection();
+    },
+
+    // Short Dumps sub-filter (inside the Live section). Changing the date
+    // range or the user re-queries the dumps and re-renders just those cards.
+    onStabilityRangeChange: function (oEvent) {
+      var oFrom = oEvent.getParameter("from");
+      var oTo = oEvent.getParameter("to");
+      if (!oFrom || !oTo) { return; }
+      this._sdFrom = oFrom;
+      this._sdTo = oTo;
+      this._stabilityNextFetch = 0;
+      this._loadStability().then(this._renderAll.bind(this));
+    },
+
+    onStabilityUserChange: function (oEvent) {
+      this._vm.setProperty("/meta/sdUser", (oEvent.getParameter("value") || "").trim());
+      this._renderAll();
+    },
+
+    onRefreshStability: function () {
+      this._stabilityNextFetch = 0;
+      this._loadStability().then(this._renderAll.bind(this));
     },
 
     onToggleAutoRefresh: function (oEvent) {
@@ -210,24 +261,25 @@ sap.ui.define([
         '<ul>',
         '<li><b>Live</b> – current-state cards: Action Center, Security, Background',
         ' Jobs, Transport. Refreshes itself <b>every 5 seconds</b> (the switch in the',
-        ' top bar pauses it). Use this for "what needs a look right now".</li>',
-        '<li><b>System Stability</b> – ABAP <b>short dumps</b> (the ST22 runtime-error',
-        ' log) from the last 7 days. Read straight off the runtime-error store, which',
-        ' no normal report or SE16N can open. Refreshed on the Live cycle but',
-        ' <b>throttled to about once a minute</b> (reading it is heavier than a normal',
-        ' query). A dump is flagged:',
+        ' top bar pauses it). Use this for "what needs a look right now".',
+        ' The <b>Short Dumps</b> cards sit at the end of this section with their own',
+        ' <b>date range + user filter</b> (default: last 7 days, all users) – they read',
+        ' the ABAP runtime-error log (ST22 / table SNAP), which no normal report or',
+        ' SE16N can open, and refresh on the Live cycle but <b>throttled to about once',
+        ' a minute</b> (the read is heavier than a normal query). Three cards:',
         '<ul>',
-        '<li><span class="status-chip chip-crit">Critical</span> – an administrator',
-        ' <b>retained</b> it in ST22 (someone already decided it matters), <i>or</i>',
-        ' the <b>same user hit 3 or more</b> dumps in the 7-day window (something is',
-        ' repeatedly breaking for them).</li>',
-        '<li><span class="status-chip chip-warn">Warning</span> – raised in the last 24 hours.</li>',
-        '<li><span class="status-chip chip-good">Info</span> – older, one-off.</li>',
+        '<li><b>Recent Short Dumps</b> – the latest 15 in the range: time, user, and',
+        ' the runtime-error name (or short text). This is the default view.</li>',
+        '<li><b>Dumps by User</b> – who is hitting them. Type an ID into the filter box',
+        ' to drill into one user.</li>',
+        '<li><b>Dumps per Day</b> – a bar per day, to see when something started or spiked.</li>',
         '</ul>',
-        ' The drill-down gives the time, the user and the application server, and the',
-        ' exact reason it was flagged. Critical dumps also appear in the Action Center.',
-        ' The runtime-error <i>name</i> and short text are a later addition – they need',
-        ' a separate ST22 API.</li>',
+        ' Severity dots: <span class="status-chip chip-crit">Critical</span> = retained',
+        ' in ST22 by an admin; <span class="status-chip chip-warn">Warning</span> = last',
+        ' 24 hours; <span class="status-chip chip-good">Info</span> = older. Every card',
+        ' drills to the full list (time, user, runtime error, short text, program,',
+        ' retained). Runtime-error name / short text come from the ST22 reader – if a',
+        ' row shows "–" there, that enrichment is not available on this system yet.</li>',
         '<li><b>Workflow</b> – approvals and work items. Pick a <b>date range</b>',
         ' at the top of the section (defaults to the last 30 days); the',
         ' throughput and "cleared by agent" cards recalculate for that window.',
@@ -264,9 +316,11 @@ sap.ui.define([
         this._helpRow("Workflow – Pending by Approver", "Whose inbox the open items sit in, as of now. An item offered to several people counts for each of them."),
         this._helpRow("Workflow – Backlog Aging", "The current open queue split by age: 0–7 days / 8–30 / 30+. The 30+ slice is the one to watch."),
         this._helpRow("Workflow – Cleared by Agent", "Who completed the most work items inside the chosen date range."),
-        this._helpRow("Short Dumps", "ABAP runtime errors (ST22) from the last 7 days, split Critical / Warning / Info. Headline number = the Critical ones. Drill-down: time, user, app server, and why each was flagged. Whose code to chase, without opening ST22."),
+        this._helpRow("Recent Short Dumps", "The latest 15 ABAP runtime errors in the selected date range: time, user, runtime-error name. The default Short Dumps view. Click for the full list with short text and program."),
+        this._helpRow("Dumps by User", "Which users are hitting short dumps in the range. Use the filter box above the section to focus on one ID."),
+        this._helpRow("Dumps per Day", "One bar per day – to see when a recurring dump started, or when a spike happened."),
         this._helpRow("Stale Objects by Owner", "Custom Z*/Y* objects still in a modifiable transport 6+ months old, grouped by author – who has the most to clean up. Drill-down lists every object with its request and age."),
-        this._helpRow("Stale Objects by Type", "The same objects by kind (programs / classes / DDIC / function groups / ...)."),
+        this._helpRow("Stale Objects by Type", "The same objects by kind, shown with a plain description (Program, Class, Data Element, ...) not just the 4-char code."),
         this._helpRow("Headcount by Company / by Employee Group / Payroll Areas", "Where the workforce sits. Context, not alerts – these cards never pulse."),
         '</tbody></table>',
 
@@ -282,10 +336,11 @@ sap.ui.define([
         '<h4>What is still being built</h4>',
         '<ul>',
         '<li><b>Business names for more codes</b> – cost centre and org unit',
-        ' (company code, employee group and payroll area already show their name).</li>',
-        '<li><b>Short-dump detail</b> – the runtime-error name, short text and',
-        ' program (needs the ST22 decompress API; the card shows time / user /',
-        ' server today).</li>',
+        ' (company code, employee group and payroll area already show their name;',
+        ' repository object types now show a description too).</li>',
+        '<li><b>Short-dump text</b> – the runtime-error name / short text / program are',
+        ' read best-effort from the ST22 reader. Where a row shows "–", that reader',
+        ' is not wired for this system\'s release yet.</li>',
         '<li><b>Interfaces and other areas</b> – planned for a later phase.</li>',
         '</ul>',
 
@@ -358,10 +413,14 @@ sap.ui.define([
       }.bind(this));
     },
 
-    // System Stability - ABAP short dumps (ST22). Backed by a RAP custom
-    // entity + query class (ZCL_TWR_SHORTDUMP_QRY) because SNAP is a
-    // clustered table no CDS can read. Reading it hits an ABAP loop over
-    // SNAP, so this is throttled to once a minute rather than every 5s tick.
+    // Short Dumps (in the Live section) - ABAP short dumps (ST22), backed by
+    // a RAP custom entity + query class (ZCL_TWR_SHORTDUMP_QRY) because SNAP
+    // is a clustered table no CDS can read. Reading it hits an ABAP loop
+    // over SNAP + the ST22 reader FM, so it is throttled to once a minute
+    // rather than fetched on every 5s live tick. Date-range / user filtering
+    // is applied client-side in _collectCards; the only filter sent to the
+    // backend is a lower date bound, so a range wider than the class's
+    // default 30-day window still returns data.
     _maybeLoadStability: function () {
       var now = Date.now();
       if (this._stabilityNextFetch && now < this._stabilityNextFetch) {
@@ -372,13 +431,20 @@ sap.ui.define([
     },
 
     _loadStability: function () {
-      return this._read("/ShortDump", 300).then(function (rows) {
-        this._vm.setProperty("/stability/list", rows);
-      }.bind(this)).catch(function () {
-        // A dump-reader hiccup must not break the Live refresh - keep the
-        // last list and let the next tick retry.
-        this._stabilityNextFetch = 0;
-      }.bind(this));
+      this._vm.setProperty("/meta/sdFrom", this._sdFrom);
+      this._vm.setProperty("/meta/sdTo", this._sdTo);
+      // The query class returns a fixed ~30-day window; date-range + user
+      // filtering is applied client-side in _collectCards. No $filter is
+      // sent, so the RAP query provider stays as simple as possible.
+      return this._read("/ShortDump", 5000)
+        .then(function (rows) {
+          this._vm.setProperty("/stability/list", rows);
+          this._vm.setProperty("/meta/stabilityUpdatedText", new Date().toLocaleTimeString());
+        }.bind(this)).catch(function () {
+          // A dump-reader hiccup must not break the Live refresh - keep the
+          // last list and let the next tick retry.
+          this._stabilityNextFetch = 0;
+        }.bind(this));
     },
 
     // Custom Code Cleanup section - current-state, loads once (not on the 5s
@@ -418,6 +484,12 @@ sap.ui.define([
       return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s;
     },
 
+    // 4-char R3TR object type -> "Program (PROG)". Falls back to the code.
+    _objTypeText: function (sCode) {
+      var c = String(sCode || "").toUpperCase().trim();
+      return OBJ_TYPE_TEXT[c] ? OBJ_TYPE_TEXT[c] + " (" + c + ")" : (c || "-");
+    },
+
     // Date <-> YYYYMMDD (the form the workflow date columns are stored as -
     // see ZI_TWR_WORKITEM; range $filter is a string compare on this).
     _ymd: function (d) {
@@ -451,6 +523,12 @@ sap.ui.define([
       var s = String(raw || "").trim();
       if (/^US[A-Za-z0-9_]/.test(s)) { return s.slice(2); }
       return s || "(unassigned)";
+    },
+
+    // Plain SAP user name (SNAP-UNAME etc.) - just trimmed, never the "US"
+    // prefix strip that _agentDisplay does for workflow org objects.
+    _userName: function (raw) {
+      return String(raw || "").trim() || "(unknown)";
     },
 
     _groupSum: function (rows, dimField, measureField) {
@@ -671,10 +749,12 @@ sap.ui.define([
       (vm.getProperty("/stability/list") || []).forEach(function (d) {
         if (this._num(d.Criticality) !== 1) { return; }
         aItems.push({
-          domain: "Short Dumps", item: d.RuntimeError || this._fmtTstamp(d.DumpTimestamp),
-          detail: (d.FlagReason || "Short dump") + " - user " + this._agentDisplay(d.DumpUser),
+          domain: "Short Dumps",
+          item: d.RuntimeError || d.ShortText || this._fmtTstamp(d.DumpTimestamp),
+          detail: (d.ShortText || d.FlagReason || "Short dump") + " - " + this._fmtTstamp(d.DumpTimestamp) +
+            ", user " + this._userName(d.DumpUser),
           status: d.SeverityText || "Critical", criticality: 1,
-          contact: this._agentDisplay(d.DumpUser) + " / Basis"
+          contact: this._userName(d.DumpUser) + " / Basis"
         });
       }.bind(this));
 
@@ -816,21 +896,43 @@ sap.ui.define([
       return '<div class="chart-col"><div class="bar-rows">' + rows.join("") + "</div></div>";
     },
 
+    // Compact recent-events list for the Short Dumps default card - one row
+    // per dump: severity dot, time, user, and the runtime error (or short
+    // text, or the flag reason if the ST22 enrichment came back empty).
+    _dumpListHtml: function (aItems) {
+      if (!aItems.length) {
+        return '<div class="chart-col"><div class="ct-dumplist ct-dumplist-empty">' +
+          this._esc(this._i18n.getText("noData")) + "</div></div>";
+      }
+      var rows = aItems.map(function (it) {
+        var cls = it.crit === 1 ? "chip-crit" : it.crit === 3 ? "chip-good" : "chip-warn";
+        return '<div class="dl-row">' +
+          '<span class="dl-dot ' + cls + '"></span>' +
+          '<span class="dl-when">' + this._esc(it.when) + "</span>" +
+          '<span class="dl-who">' + this._esc(it.who) + "</span>" +
+          '<span class="dl-what" title="' + this._esc(it.what) + '">' + this._esc(it.what) + "</span>" +
+          "</div>";
+      }.bind(this)).join("");
+      return '<div class="chart-col"><div class="ct-dumplist">' + rows + "</div></div>";
+    },
+
     _cardHtml: function (c) {
       var kpi = typeof c.kpi === "number" ? c.kpi.toLocaleString() : this._esc(c.kpi);
       var tip = this._esc(c.title + " — " + c.kpiLabel + ". Click for the full list.");
       var body;
-      if (c.chartType === "rank") {
+      if (c.chartType === "rank" || c.chartType === "list") {
+        var stackChart = c.chartType === "list" ? this._dumpListHtml(c.data) : this._rankListHtml(c.data, c.total);
         body = '<div class="card-body card-stack">' +
           '<div class="kpi-inline"><span class="kpi-num-sm">' + kpi + "</span>" +
           '<span class="kpi-label">' + this._esc(c.kpiLabel) + "</span></div>" +
-          this._rankListHtml(c.data, c.total) + "</div>";
+          stackChart + "</div>";
       } else {
         var chart = c.chartType === "bar" ? this._barHtml(c.data) : this._donutHtml(c.data);
         body = '<div class="card-body"><div class="kpi-col"><div class="kpi-num">' + kpi + "</div>" +
           '<div class="kpi-label">' + this._esc(c.kpiLabel) + "</div></div>" + chart + "</div>";
       }
-      return '<div class="card' + (c.attn ? " ctPulseAlert" : "") + (c.chartType === "rank" ? " card-tall" : "") +
+      return '<div class="card' + (c.attn ? " ctPulseAlert" : "") +
+        ((c.chartType === "rank" || c.chartType === "list") ? " card-tall" : "") +
         '" tabindex="0" role="button" data-id="' + c.id + '" aria-haspopup="dialog" title="' + tip + '">' +
         '<div class="card-head"><div><div class="card-title">' + this._esc(c.title) + "</div>" +
         '<div class="card-sub">' + this._esc(c.sub) + "</div></div>" +
@@ -1000,51 +1102,112 @@ sap.ui.define([
         }.bind(this))
       });
 
-      // --- System Stability section (1 card) ---
+      // --- Short Dumps (rendered inside the Live section) ---
+      // Backend returns ~30 days; the date-range + user filter below is
+      // applied client-side so the three cards recompute instantly.
 
-      var dumps = vm.getProperty("/stability/list") || [];
-      var dumpsBySeverity = [
-        { name: "Critical", value: 0 },
-        { name: "Warning", value: 0 },
-        { name: "Info", value: 0 }
-      ];
+      var dumpsAll = vm.getProperty("/stability/list") || [];
+      var sdFromYmd = this._ymd(this._sdFrom);
+      var sdToYmd = this._ymd(this._sdTo);
+      var sdUser = (vm.getProperty("/meta/sdUser") || "").toUpperCase();
+      var dumps = dumpsAll.filter(function (d) {
+        var ymd = String(d.DumpDate || "");
+        if (ymd && (ymd < sdFromYmd || ymd > sdToYmd)) { return false; }
+        if (sdUser && String(d.DumpUser || "").toUpperCase().indexOf(sdUser) < 0) { return false; }
+        return true;
+      });
+      dumps.sort(function (a, b) {
+        return String(b.DumpTimestamp || "").localeCompare(String(a.DumpTimestamp || ""));
+      });
+
+      var dumpTotal = dumps.length;
+      var dumpReason = function (d) {
+        return d.RuntimeError || d.ShortText || d.FlagReason || "(short dump)";
+      };
+      var dumpWindowText = this._fmtYmd(sdFromYmd) + " to " + this._fmtYmd(sdToYmd) +
+        (sdUser ? ", user ~" + esc(sdUser) : "");
+
+      var dumpsByUser = this._ownerAgg(dumps, "DumpUser").map(function (o) {
+        return { owner: this._userName(o.owner), open: o.open, released: 0 };
+      }.bind(this));
+      var dumpDistinctUsers = dumpsByUser.length;
+
+      var dumpsByDayMap = {};
       dumps.forEach(function (d) {
-        var c = this._num(d.Criticality);
-        dumpsBySeverity[c === 1 ? 0 : c === 2 ? 1 : 2].value += 1;
+        var k = this._fmtYmd(d.DumpDate);
+        if (k !== "-") { dumpsByDayMap[k] = (dumpsByDayMap[k] || 0) + 1; }
       }.bind(this));
-      var dumpsCritical = dumpsBySeverity[0].value;
-      var dumpsByUser = this._ownerAgg(dumps, "DumpUser");
+      var dumpsByDay = Object.keys(dumpsByDayMap).sort().map(function (k) {
+        var dt = new Date(+k.slice(0, 4), +k.slice(5, 7) - 1, +k.slice(8, 10));
+        return {
+          owner: dt.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+          open: dumpsByDayMap[k], released: 0
+        };
+      });
 
-      var dumpRows = dumps.slice().sort(function (a, b) {
-        var byCrit = this._num(a.Criticality) - this._num(b.Criticality);
-        return byCrit !== 0 ? byCrit
-          : String(b.DumpTimestamp || "").localeCompare(String(a.DumpTimestamp || ""));
-      }.bind(this)).map(function (d) {
+      var dumpDetailCols = [this._i18n.getText("colWhen"), this._i18n.getText("colUsername"),
+        this._i18n.getText("colRuntimeError"), this._i18n.getText("colShortText"),
+        this._i18n.getText("colProgram"), this._i18n.getText("colRetained")];
+      var dumpRow = function (d) {
         return [
-          esc(this._fmtTstamp(d.DumpTimestamp)),
-          esc(this._agentDisplay(d.DumpUser)),
-          esc(d.DumpHost),
-          this._statusChip(this._num(d.Criticality), d.SeverityText),
-          esc(d.FlagReason),
-          d.IsRetained === "X" ? this._i18n.getText("yes") : this._i18n.getText("no")
+          this._statusChip(this._num(d.Criticality), this._fmtTstamp(d.DumpTimestamp)),
+          esc(this._userName(d.DumpUser)),
+          esc(d.RuntimeError || "-"),
+          esc(d.ShortText || "-"),
+          esc(d.AbapProgram || "-"),
+          d.IsRetained === "X" ? esc(this._i18n.getText("yes")) : esc(this._i18n.getText("no"))
         ];
-      }.bind(this));
+      }.bind(this);
+      var dumpDetailRows = dumps.map(dumpRow);
 
+      // Card 1 - the default view: latest 15 with time / user / main reason
       cards.push({
-        section: "stability", id: "dumps", attn: dumpsCritical > 0,
-        title: this._i18n.getText("cardDumps"), sub: this._i18n.getText("cardDumpsSub"),
-        kpi: dumpsCritical, kpiLabel: this._i18n.getText("kpiDumps"),
-        chartType: "donut", data: dumpsBySeverity,
-        insight: dumps.length === 0
-          ? "No short dumps in the last 7 days."
-          : dumpsCritical > 0
-            ? "<b>" + dumpsCritical + "</b> critical of " + dumps.length + " dumps in the last 7 days"
-              + (dumpsByUser.length ? " - most from <b>" + esc(dumpsByUser[0].owner) + "</b>." : ".")
-            : dumps.length + " dumps in the last 7 days, none flagged critical.",
-        detailCols: [this._i18n.getText("colWhen"), this._i18n.getText("colUsername"),
-          this._i18n.getText("colAppServer"), this._i18n.getText("colStatus"),
-          this._i18n.getText("colReason"), this._i18n.getText("colRetained")],
-        detailRows: dumpRows
+        section: "stability", id: "dumps-recent",
+        attn: dumps.some(function (d) { return this._num(d.Criticality) === 1; }.bind(this)),
+        title: this._i18n.getText("cardDumpsRecent"), sub: this._i18n.getText("cardDumpsRecentSub"),
+        kpi: dumpTotal, kpiLabel: this._i18n.getText("kpiDumpsInWindow"),
+        chartType: "list",
+        data: dumps.slice(0, 15).map(function (d) {
+          return {
+            crit: this._num(d.Criticality),
+            when: this._fmtTstamp(d.DumpTimestamp),
+            who: this._userName(d.DumpUser),
+            what: dumpReason(d)
+          };
+        }.bind(this)),
+        insight: dumpTotal === 0
+          ? "No short dumps for " + dumpWindowText + "."
+          : "<b>" + dumpTotal + "</b> dump" + (dumpTotal === 1 ? "" : "s") + " from <b>" + dumpDistinctUsers +
+            "</b> user" + (dumpDistinctUsers === 1 ? "" : "s") + " (" + dumpWindowText + "). Latest " +
+            esc(this._fmtTstamp((dumps[0] || {}).DumpTimestamp)) + ".",
+        detailCols: dumpDetailCols, detailRows: dumpDetailRows
+      });
+
+      // Card 2 - which user is hitting them
+      cards.push({
+        section: "stability", id: "dumps-user", attn: false,
+        title: this._i18n.getText("cardDumpsUser"), sub: this._i18n.getText("cardDumpsUserSub"),
+        kpi: dumpDistinctUsers, kpiLabel: this._i18n.getText("kpiDumpsUsers"),
+        chartType: "bar", data: dumpsByUser,
+        insight: this._ownerInsight(dumpsByUser, "dumps"),
+        detailCols: dumpDetailCols,
+        detailRows: dumps.slice().sort(function (a, b) {
+          return String(a.DumpUser || "").localeCompare(String(b.DumpUser || ""));
+        }).map(dumpRow)
+      });
+
+      // Card 3 - dumps per day, to spot when something started or spiked
+      cards.push({
+        section: "stability", id: "dumps-day", attn: false,
+        title: this._i18n.getText("cardDumpsDay"), sub: this._i18n.getText("cardDumpsDaySub"),
+        kpi: dumpTotal, kpiLabel: this._i18n.getText("kpiDumpsInWindow"),
+        chartType: "bar", data: dumpsByDay.slice(-6),
+        insight: (function () {
+          if (!dumpsByDay.length) { return "No dumps in the selected window."; }
+          var peak = dumpsByDay.slice().sort(function (a, b) { return b.open - a.open; })[0];
+          return "<b>" + peak.open + "</b> on <b>" + esc(peak.owner) + "</b> was the busiest day.";
+        })(),
+        detailCols: dumpDetailCols, detailRows: dumpDetailRows
       });
 
       // --- Workflow date-range section (5 cards) ---
@@ -1122,13 +1285,13 @@ sap.ui.define([
       }.bind(this)).sort(function (a, b) { return b.open - a.open; });
       var cleanupTotal = cleanupByOwner.reduce(function (t, r) { return t + r.open; }, 0);
       var cleanupByType = (vm.getProperty("/cleanup/byType") || []).map(function (r) {
-        return { name: r.ObjectType || "(none)", value: this._num(r.ObjectCount) };
+        return { name: r.ObjectType || "(none)", label: this._objTypeText(r.ObjectType), value: this._num(r.ObjectCount) };
       }.bind(this)).sort(byName);
 
       var cleanupRows = cleanupList.slice().sort(function (a, b) {
-        return String(a.ChangedOn || "").localeCompare(String(b.ChangedOn || ""));
+        return String(b.ChangedOn || "").localeCompare(String(a.ChangedOn || ""));
       }).map(function (r) {
-        return [esc(r.ObjectType), esc(r.ObjectName), esc(r.DevClass), esc(r.ObjectAuthor),
+        return [esc(this._objTypeText(r.ObjectType)), esc(r.ObjectName), esc(r.DevClass), esc(r.ObjectAuthor),
           esc(r.TransportRequest), esc(this._fmtYmd(r.ChangedOn))];
       }.bind(this));
       var cleanupCols = [this._i18n.getText("colType"), this._i18n.getText("colObject"), this._i18n.getText("colPackage"),

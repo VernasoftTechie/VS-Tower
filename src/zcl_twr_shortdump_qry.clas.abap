@@ -2,13 +2,15 @@
 "!
 "! The one and only ABAP class in VS-Tower. Table SNAP (ABAP runtime errors)
 "! is a clustered store - it cannot be read with Open SQL / SE16N / a plain
-"! CDS view, so the "System Stability" card is backed by a RAP custom entity
+"! CDS view, so the Short Dumps cards are backed by a RAP custom entity
 "! (ZC_TWR_SHORTDUMP) whose query is implemented here.
 "!
-"! Read-only. Returns one row per dump for the last 7 days with a derived
-"! criticality (Retained / Repeated -> Critical, Recent -> Warning, else
-"! Info). Runtime-error name / short text / program need the ST22 decompress
-"! API and are a documented follow-up - see docs/BUILD_ISSUES_LOG.md.
+"! Read-only. Returns one row per dump for a fixed 30-day window (the UI's
+"! date-range + user filter narrows it client-side).
+"! Header fields (when / who / server / retained) come straight from SNAP;
+"! RuntimeError / ShortText / AbapProgram are a best-effort enrichment from
+"! FM RS_ST22_GET_DUMPS, fully guarded - blank if that FM's interface differs
+"! on this release (see docs/BUILD_ISSUES_LOG.md).
 CLASS zcl_twr_shortdump_qry DEFINITION
   PUBLIC
   FINAL
@@ -19,14 +21,21 @@ CLASS zcl_twr_shortdump_qry DEFINITION
 
   PRIVATE SECTION.
     CONSTANTS:
-      c_lookback_days    TYPE i VALUE 7,
-      c_repeat_threshold TYPE i VALUE 3,
-      c_max_rows         TYPE i VALUE 300.
+      c_default_days TYPE i VALUE 30,
+      c_max_rows     TYPE i VALUE 5000.
 
     TYPES ty_result TYPE STANDARD TABLE OF zc_twr_shortdump WITH EMPTY KEY.
 
     METHODS build_list
       RETURNING VALUE(rt_result) TYPE ty_result.
+
+    METHODS enrich_from_st22
+      CHANGING ct_result TYPE ty_result.
+
+    METHODS pick_component
+      IMPORTING is_src        TYPE any
+                iv_candidates TYPE string
+      CHANGING  cv_target     TYPE any.
 ENDCLASS.
 
 
@@ -66,20 +75,18 @@ CLASS zcl_twr_shortdump_qry IMPLEMENTATION.
 
   METHOD build_list.
 
-    TRY.
-        DATA(lv_today) = cl_abap_context_info=>get_system_date( ).
-        DATA(lv_from)  = CONV d( lv_today - c_lookback_days ).
-        DATA(lv_yday)  = CONV d( lv_today - 1 ).
+    " Fixed 30-day window. The UI's date-range picker narrows this further
+    " client-side; a range wider than 30 days simply shows what's loaded
+    " (deep history would be a later change - keep the query trivially safe).
+    DATA(lv_today) = cl_abap_context_info=>get_system_date( ).
+    DATA(lv_from)  = CONV d( lv_today - c_default_days ).
+    DATA(lv_yday)  = CONV d( lv_today - 1 ).
 
-        " One logical dump = one distinct (date, time, user, host). SNAP
-        " stores each dump as many SEQNO chunks that all repeat these header
-        " fields, so DISTINCT collapses a dump to a single row.
-        "
-        " VERIFY-ME (T5-style): SNAP field names DATUM / UZEIT / UNAME /
-        " AHOST / XHOLD. If activation flags one it is a straight rename
-        " here - nothing else depends on the physical names. The whole read
-        " is wrapped so any failure (incl. missing SELECT authorisation)
-        " leaves the card empty instead of dumping the OData call.
+    " One logical dump = one distinct (date, time, user, host). SNAP stores
+    " each dump as many SEQNO chunks that all repeat these header fields.
+    " VERIFY-ME (T-style): SNAP fields DATUM / UZEIT / UNAME / AHOST / XHOLD.
+    " The whole read is wrapped - any failure leaves an empty card, not a 500.
+    TRY.
         SELECT DISTINCT
                datum AS dump_date,
                uzeit AS dump_time,
@@ -88,7 +95,9 @@ CLASS zcl_twr_shortdump_qry IMPLEMENTATION.
                xhold AS retained
           FROM snap
           WHERE datum >= @lv_from
-          INTO TABLE @DATA(lt_snap).
+          ORDER BY dump_date DESCENDING, dump_time DESCENDING
+          INTO TABLE @DATA(lt_snap)
+          UP TO @c_max_rows ROWS.
       CATCH cx_root.
         CLEAR rt_result.
         RETURN.
@@ -98,7 +107,8 @@ CLASS zcl_twr_shortdump_qry IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    " Dumps per user across the whole window - a burst from one ID escalates.
+    " dumps per user across the window (shown as context, not used for
+    " criticality any more - it made a single recurring job read as 300 reds)
     TYPES: BEGIN OF ty_cnt,
              dump_user TYPE c LENGTH 12,
              cnt       TYPE i,
@@ -137,10 +147,6 @@ CLASS zcl_twr_shortdump_qry IMPLEMENTATION.
         ls_r-criticality  = 1.
         ls_r-severitytext = 'Critical'.
         ls_r-flagreason   = 'Retained in ST22 by an administrator'.
-      ELSEIF lv_cnt >= c_repeat_threshold.
-        ls_r-criticality  = 1.
-        ls_r-severitytext = 'Critical'.
-        ls_r-flagreason   = |{ lv_cnt } dumps from this user in { c_lookback_days } days|.
       ELSEIF <s>-dump_date >= lv_yday.
         ls_r-criticality  = 2.
         ls_r-severitytext = 'Warning'.
@@ -155,13 +161,105 @@ CLASS zcl_twr_shortdump_qry IMPLEMENTATION.
 
     ENDLOOP.
 
-    SORT rt_result BY criticality ASCENDING dumptimestamp DESCENDING.
+    SORT rt_result BY dumptimestamp DESCENDING.
 
-    IF lines( rt_result ) > c_max_rows.
-      DATA(lv_cut) = c_max_rows + 1.
-      DELETE rt_result FROM lv_cut.
+    enrich_from_st22( CHANGING ct_result = rt_result ).
+
+  ENDMETHOD.
+
+
+  METHOD enrich_from_st22.
+    " Best-effort. RS_ST22_GET_DUMPS is what ST22 itself calls to build its
+    " list. Called dynamically (variable FM name) so a missing FM or a
+    " different interface cannot block activation - the columns just stay
+    " blank and the cards work off the SNAP header fields. If they ARE blank
+    " after activation, the SE37 signature of RS_ST22_GET_DUMPS maps straight
+    " onto this method (Import: date range; Tables: the dump list).
+    IF ct_result IS INITIAL.
+      RETURN.
     ENDIF.
 
+    TRY.
+        DATA lt_snap TYPE STANDARD TABLE OF snap.
+        DATA(lv_to)   = cl_abap_context_info=>get_system_date( ).
+        DATA(lv_from) = CONV d( lv_to - c_default_days ).
+
+        " kind: 'E' exporting, 'T' tables (abap_func_parmbind-kind values).
+        " Literals, not the type-pool constants, so a constant-name change
+        " can never break activation - only the runtime call, which is caught.
+        DATA lt_par TYPE abap_func_parmbind_tab.
+        DATA lt_exc TYPE abap_func_excpbind_tab.
+        lt_par = VALUE #(
+          ( name = 'P_DAYFR' kind = 'E' value = REF #( lv_from ) )
+          ( name = 'P_DAYTO' kind = 'E' value = REF #( lv_to ) )
+          ( name = 'P_LIST'  kind = 'T' value = REF #( lt_snap ) ) ).
+        lt_exc = VALUE #( ( name = 'OTHERS' value = 1 ) ).
+
+        DATA lv_fm TYPE c LENGTH 30.
+        lv_fm = 'RS_ST22_GET_DUMPS'.
+        CALL FUNCTION lv_fm
+          PARAMETER-TABLE lt_par
+          EXCEPTION-TABLE lt_exc.
+
+        IF sy-subrc <> 0 OR lt_snap IS INITIAL.
+          RETURN.
+        ENDIF.
+
+        " index the FM's rows by date+time+user so the merge is not O(n*m)
+        TYPES: BEGIN OF ty_idx,
+                 k    TYPE string,
+                 err  TYPE string,
+                 txt  TYPE string,
+                 prog TYPE string,
+               END OF ty_idx.
+        DATA lt_idx TYPE HASHED TABLE OF ty_idx WITH UNIQUE KEY k.
+        DATA lv_err  TYPE string.
+        DATA lv_txt  TYPE string.
+        DATA lv_prog TYPE string.
+
+        LOOP AT lt_snap ASSIGNING FIELD-SYMBOL(<f>).
+          CLEAR: lv_err, lv_txt, lv_prog.
+          pick_component( EXPORTING is_src = <f>
+                                    iv_candidates = 'ERROR_ID SNAPID ERRID RUNTIME_ERROR'
+                          CHANGING  cv_target = lv_err ).
+          pick_component( EXPORTING is_src = <f>
+                                    iv_candidates = 'SHORT_TEXT SNAPTID DUMPTEXT TEXT'
+                          CHANGING  cv_target = lv_txt ).
+          pick_component( EXPORTING is_src = <f>
+                                    iv_candidates = 'PROG PROGRAM ABAP_PROG RSNAP_PROG'
+                          CHANGING  cv_target = lv_prog ).
+          IF lv_err IS INITIAL AND lv_txt IS INITIAL.
+            CONTINUE.
+          ENDIF.
+          DATA(lv_key) = |{ <f>-datum DATE = RAW }{ <f>-uzeit TIME = RAW }{ <f>-uname }|.
+          INSERT VALUE #( k = lv_key err = lv_err txt = lv_txt prog = lv_prog )
+                 INTO TABLE lt_idx.
+        ENDLOOP.
+
+        LOOP AT ct_result ASSIGNING FIELD-SYMBOL(<r>).
+          READ TABLE lt_idx INTO DATA(ls_i) WITH KEY k = |{ <r>-dumpid }|.
+          IF sy-subrc = 0.
+            <r>-runtimeerror = ls_i-err.
+            <r>-shorttext    = ls_i-txt.
+            <r>-abapprogram  = ls_i-prog.
+          ENDIF.
+        ENDLOOP.
+
+      CATCH cx_root.
+        RETURN.
+    ENDTRY.
+  ENDMETHOD.
+
+
+  METHOD pick_component.
+    SPLIT iv_candidates AT ` ` INTO TABLE DATA(lt_names).
+    LOOP AT lt_names INTO DATA(lv_name).
+      ASSIGN COMPONENT lv_name OF STRUCTURE is_src TO FIELD-SYMBOL(<f>).
+      IF sy-subrc = 0 AND <f> IS NOT INITIAL.
+        cv_target = <f>.
+        RETURN.
+      ENDIF.
+    ENDLOOP.
   ENDMETHOD.
 
 ENDCLASS.
