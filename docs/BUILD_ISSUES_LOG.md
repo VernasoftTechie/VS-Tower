@@ -176,8 +176,10 @@ before the first activation, not after.
     - Fields end with **`;`** (not `,` like a view entity), each `Name : type;`,
       **no `as` alias**, primitive types only (`abap.char(n)` / `abap.int4` /
       `abap.dats` …).
-    - Carry **`@EndUserText.label` only** — the freestyle UI never reads CDS
-      `@UI` / `@ObjectModel` element annotations, so they are pure parser risk.
+    - `@EndUserText.label` is always safe. **`@UI.lineItem` is also fine** on a
+      custom entity (T9 was the `key @…` *ordering*, not the annotation) and is
+      needed for the service-binding preview to show any columns at all (T12) —
+      keep it on the display fields. The freestyle app ignores all `@UI`.
     - Entity level: `@EndUserText.label` + `@ObjectModel.query.implementedBy:
       'ABAP:<CLASS>'`. Activation order: entity first (activates with a warning
       while the class is missing) → class → re-activate entity.
@@ -224,6 +226,7 @@ in this table is unverified on this system — check SE11 before using it.
 | T9 | 🔴 **Activation** (`ZC_TWR_SHORTDUMP`): "Unexpected word \"@\"" | In the custom entity the `@EndUserText.label` annotation sat **between** the `key` keyword and the field name (`key @EndUserText.label: 'x'` newline `DumpId ...`). Annotations must come **before** `key`. | Reordered: annotation line, then `key DumpId : abap.char(72);`. Also stripped every element `@UI` from the custom entity (the freestyle app never reads CDS `@UI` — pure parser surface). New checklist item #26. | 1cc7911 → still failed on T10 |
 | T10 | 🔴 **Activation** (`ZC_TWR_SHORTDUMP`): "The first field must be a key field" | A CDS **custom entity** (unlike a view entity) requires its **first** listed element to be the `key`. `SeverityText` was listed first, `key DumpId` second. | `key DumpId` moved to the top of the field list. New checklist item #28. | *(fix pushed, pending re-pull)* |
 | T11 | 🟡 **Activation** (`ZI_TWR_STALE_OBJ`, pre-emptive — never actually hit): `dats_days_between( … ) >= 180` in a CDS `WHERE` | Support for a CDS built-in scalar function inside `WHERE` (vs. the SELECT list) is release-dependent (~7.55+). Flagged as the one unknown on the stale-obj views since they were written. | Moved out of `WHERE`: `dats_days_between` is now `AgeInDays` in `ZI_TWR_STALE_OBJ`'s field list; `ZC_TWR_STALE_OBJ` / `_BY_OWNER` / `_BY_TYPE` each filter `where AgeInDays >= 180` (plain integer compare). New checklist item #27. | 1cc7911 |
+| T12 | 🟡 **Service-binding preview** (`ShortDump`): "There are no visible columns in the table right now. Please select the columns you need in the table settings." | `ZC_TWR_SHORTDUMP` had **all `@UI.lineItem` stripped** (over-correction after T9, which was actually an *ordering* problem, not the annotation itself). A Fiori Elements List Report shows a column only for a field carrying `@UI.lineItem` — with none, the preview table is empty. The freestyle app is unaffected (it never reads `@UI`), but the preview is the only way to eyeball the entity. **Not** a data problem — the query class still runs. | Put `@UI.lineItem: [{ position: n }]` back on the six display fields (Severity / When / User / App Server / Why Flagged / Retained), annotations correctly **before** `key`/name. `@UI.lineItem` on a custom entity is fine; only the `key @…` ordering (T9) was the bug. | *(fix pushed, pending re-pull)* |
 
 **Stage 2 result: confirmed after T1.** `SecurityUser` preview renders —
 4,860 users, `UserType` showing `A` (cast fixed it), `IsLocked` criticality

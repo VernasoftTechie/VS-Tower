@@ -1,5 +1,6 @@
 @EndUserText.label: 'Tower - Short Dumps (ST22)'
 @ObjectModel.query.implementedBy: 'ABAP:ZCL_TWR_SHORTDUMP_QRY'
+@UI.headerInfo: { typeName: 'Short Dump', typeNamePlural: 'Short Dumps' }
 
 // ABAP short dumps (table SNAP) from the last 7 days, for the "System
 // Stability" card. SNAP is a clustered runtime-error store - it cannot be
@@ -8,9 +9,10 @@
 // is expected). This is the ONE custom entity + query class in an
 // otherwise class-free repo (decision D1 relaxed for this single case).
 //
-// The freestyle SAPUI5 app does not read CDS @UI annotations, so this
-// entity carries plain @EndUserText.label only - no @UI / @ObjectModel
-// element annotations to trip a custom-entity parser.
+// @UI.lineItem is here only so the service-binding preview shows columns -
+// the freestyle SAPUI5 app reads the raw entity and ignores all @UI.
+// Annotations sit BEFORE the key / field name (custom-entity rule, see
+// docs/BUILD_ISSUES_LOG.md #26 / #28).
 //
 // The query class reads SNAP's transparent header fields (when / who /
 // which server / retained flag) and derives a criticality from three
@@ -20,16 +22,18 @@
 //   - Recent    : raised in the last 24h -> Warning
 //   - otherwise -> Info
 // Runtime-error name / short text / program need the ST22 decompress API
-// and are a documented follow-up (see docs/BUILD_ISSUES_LOG.md).
+// and are a documented follow-up.
 
 define custom entity ZC_TWR_SHORTDUMP
 {
       @EndUserText.label: 'Dump'
   key DumpId          : abap.char(72);
 
+      @UI.lineItem: [{ position: 10 }]
       @EndUserText.label: 'Severity'
       SeverityText    : abap.char(12);
 
+      @UI.lineItem: [{ position: 20 }]
       @EndUserText.label: 'When'
       DumpTimestamp   : abap.char(14);
 
@@ -39,19 +43,24 @@ define custom entity ZC_TWR_SHORTDUMP
       @EndUserText.label: 'Time (HHMMSS)'
       DumpTime        : abap.char(6);
 
+      @UI.lineItem: [{ position: 30 }]
       @EndUserText.label: 'User'
       DumpUser        : abap.char(12);
 
+      @UI.lineItem: [{ position: 40 }]
       @EndUserText.label: 'App Server'
       DumpHost        : abap.char(32);
 
+      @UI.lineItem: [{ position: 50 }]
       @EndUserText.label: 'Why Flagged'
       FlagReason      : abap.char(60);
 
+      @UI.lineItem: [{ position: 60 }]
       @EndUserText.label: 'Retained'
       IsRetained      : abap.char(1);
 
-      @EndUserText.label: 'Dumps by User (window)'
+      @UI.lineItem: [{ position: 70 }]
+      @EndUserText.label: 'Dumps by User'
       DumpsByUser     : abap.int4;
 
       @EndUserText.label: 'Criticality'
