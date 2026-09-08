@@ -13,7 +13,7 @@ define view entity ZC_TWR_STALE_OBJ
       @UI.selectionField: [{ position: 10 }]
   key TransportRequest,
 
-  key Position,
+  key ItemPos,
 
       @UI.lineItem:       [{ position: 20 }]
       @UI.selectionField: [{ position: 20 }]

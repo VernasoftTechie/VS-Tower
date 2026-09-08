@@ -30,13 +30,13 @@ define view entity ZI_TWR_STALE_OBJ
       and t.obj_name = o.obj_name
 {
   key o.trkorr                             as TransportRequest,
-  key o.as4pos                             as Position,
+  key o.as4pos                             as ItemPos,
       o.object                             as ObjectType,
       o.obj_name                           as ObjectName,
       t.devclass                           as Package,
       t.author                             as Author,
       h.as4user                            as TransportOwner,
-      cast( h.trstatus as abap.char( 1 ) ) as RequestStatus,
+      h.trstatus                           as RequestStatus,
       cast( h.as4date as abap.char( 8 ) )  as ChangedOn
 }
 where o.pgmid = 'R3TR'
