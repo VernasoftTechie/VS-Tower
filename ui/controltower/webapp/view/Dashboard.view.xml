@@ -68,6 +68,13 @@
       </Toolbar>
       <core:HTML content="{/workflowHtml}" sanitizeContent="false"/>
 
+      <!-- Custom Code Cleanup section -->
+      <Toolbar design="Transparent" class="ctSectionBar sapUiMediumMarginTop">
+        <Title text="{i18n>sectionCleanup}" level="H3"/>
+        <Text text="{i18n>sectionCleanupHint}" class="ctSectionHint sapUiSmallMarginBegin"/>
+      </Toolbar>
+      <core:HTML content="{/cleanupHtml}" sanitizeContent="false"/>
+
       <!-- Workforce context section -->
       <Toolbar design="Transparent" class="ctSectionBar sapUiMediumMarginTop">
         <Title text="{i18n>sectionWorkforce}" level="H3"/>

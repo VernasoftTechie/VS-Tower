@@ -20,4 +20,7 @@ define service ZTWR_UI_SRVD {
   expose ZC_TWR_WF_BY_AGENT         as WorkflowByAgent;
   expose ZC_TWR_WF_AGING            as WorkflowAging;
   expose ZC_TWR_WF_BY_ACTUAL_AGENT  as WorkflowByActualAgent;
+  expose ZC_TWR_STALE_OBJ           as StaleObject;
+  expose ZC_TWR_STALE_OBJ_BY_OWNER  as StaleObjectByOwner;
+  expose ZC_TWR_STALE_OBJ_BY_TYPE   as StaleObjectByType;
 }

@@ -48,8 +48,10 @@ sap.ui.define([
           byAgent: [], aging: [], byActualAgent: [],
           raised: 0, processed: 0
         },
+        cleanup: { byOwner: [], byType: [], list: [] },
         liveHtml: "",
         workflowHtml: "",
+        cleanupHtml: "",
         workforceHtml: "",
         meta: {
           autoRefresh: true, liveUpdatedText: "", workflowUpdatedText: "",
@@ -210,6 +212,10 @@ sap.ui.define([
         ' throughput and "cleared by agent" cards recalculate for that window.',
         ' The "pending by approver", "aging" and "by status" cards are always',
         ' as-of-now – a date range can\'t sensibly say what is still stuck.</li>',
+        '<li><b>Custom Code Cleanup</b> – custom (Z*/Y*) objects still locked in',
+        ' an unreleased transport that has not moved in 6+ months. The cleanup',
+        ' worklist: is this still needed, or can the object and its transport',
+        ' be dropped?</li>',
         '<li><b>Workforce Context</b> – headcount and payroll reference figures.',
         ' Loaded once; it barely changes.</li>',
         '</ul>',
@@ -233,6 +239,8 @@ sap.ui.define([
         this._helpRow("Workflow – Pending by Approver", "Whose inbox the open items sit in, as of now. An item offered to several people counts for each of them."),
         this._helpRow("Workflow – Backlog Aging", "The current open queue split by age: 0–7 days / 8–30 / 30+. The 30+ slice is the one to watch."),
         this._helpRow("Workflow – Cleared by Agent", "Who completed the most work items inside the chosen date range."),
+        this._helpRow("Stale Objects by Owner", "Custom objects stuck in an unreleased 6+ month-old transport, grouped by author – who has the most to clean up."),
+        this._helpRow("Stale Objects by Type", "The same objects by kind (programs / classes / DDIC / ...)."),
         this._helpRow("Headcount by Company / by Employee Group / Payroll Areas", "Where the workforce sits. Context, not alerts – these cards never pulse."),
         '</tbody></table>',
 
@@ -310,10 +318,27 @@ sap.ui.define([
     },
 
     _loadContext: function () {
-      return this._loadWorkforce().catch(function (e) {
+      return Promise.all([
+        this._loadWorkforce(),
+        this._loadCleanup()
+      ]).catch(function (e) {
         this._setError((e && e.message) || String(e));
       }.bind(this)).then(function () {
         this._renderAll();
+      }.bind(this));
+    },
+
+    // Custom Code Cleanup section - current-state, loads once (not on the 5s
+    // poll). Custom objects locked in an unreleased transport 6+ months old.
+    _loadCleanup: function () {
+      return Promise.all([
+        this._read("/StaleObjectByOwner"),
+        this._read("/StaleObjectByType"),
+        this._read("/StaleObject", 500)
+      ]).then(function (res) {
+        this._vm.setProperty("/cleanup/byOwner", res[0]);
+        this._vm.setProperty("/cleanup/byType", res[1]);
+        this._vm.setProperty("/cleanup/list", res[2]);
       }.bind(this));
     },
 
@@ -971,6 +996,46 @@ sap.ui.define([
         detailRows: wfClearedByAgent.map(function (r) { return [esc(r.owner), r.open.toLocaleString()]; })
       });
 
+      // --- Custom Code Cleanup section (2 cards) ---
+
+      var cleanupList = vm.getProperty("/cleanup/list") || [];
+      var cleanupByOwner = (vm.getProperty("/cleanup/byOwner") || []).map(function (r) {
+        return { owner: r.Author || "(no author)", open: this._num(r.ObjectCount), released: 0 };
+      }.bind(this)).sort(function (a, b) { return b.open - a.open; });
+      var cleanupTotal = cleanupByOwner.reduce(function (t, r) { return t + r.open; }, 0);
+      var cleanupByType = (vm.getProperty("/cleanup/byType") || []).map(function (r) {
+        return { name: r.ObjectType || "(none)", value: this._num(r.ObjectCount) };
+      }.bind(this)).sort(byName);
+
+      var cleanupRows = cleanupList.slice().sort(function (a, b) {
+        return String(a.ChangedOn || "").localeCompare(String(b.ChangedOn || ""));
+      }).map(function (r) {
+        return [esc(r.ObjectType), esc(r.ObjectName), esc(r.Package), esc(r.Author),
+          esc(r.TransportRequest), esc(this._fmtYmd(r.ChangedOn))];
+      }.bind(this));
+      var cleanupCols = [this._i18n.getText("colType"), this._i18n.getText("colObject"), this._i18n.getText("colPackage"),
+        this._i18n.getText("colAuthor"), this._i18n.getText("colRequest"), this._i18n.getText("colRequestDate")];
+
+      cards.push({
+        section: "cleanup", id: "cleanup-owner", attn: cleanupTotal > 0,
+        title: this._i18n.getText("cardCleanupOwner"), sub: this._i18n.getText("cardCleanupOwnerSub"),
+        kpi: cleanupTotal, kpiLabel: this._i18n.getText("kpiCleanup"),
+        chartType: "bar", data: cleanupByOwner,
+        insight: cleanupByOwner.length && cleanupByOwner[0].open > 0
+          ? "<b>" + this._esc(cleanupByOwner[0].owner) + "</b> owns " + cleanupByOwner[0].open + " - the most to clean up."
+          : "No custom objects stuck in an old transport.",
+        detailCols: cleanupCols, detailRows: cleanupRows
+      });
+
+      cards.push({
+        section: "cleanup", id: "cleanup-type", attn: false,
+        title: this._i18n.getText("cardCleanupType"), sub: this._i18n.getText("cardCleanupTypeSub"),
+        kpi: cleanupByType.length, kpiLabel: this._i18n.getText("kpiCleanupTypes"),
+        chartType: "donut", data: cleanupByType,
+        insight: this._topInsight(cleanupByType, cleanupTotal),
+        detailCols: cleanupCols, detailRows: cleanupRows
+      });
+
       var byValueDesc = function (a, b) { return b.value - a.value; };
       var contextDetail = function (rows, iTotal) {
         return rows.slice().sort(byValueDesc).map(function (r) {
@@ -1023,6 +1088,7 @@ sap.ui.define([
 
       this._vm.setProperty("/liveHtml", bySection("live"));
       this._vm.setProperty("/workflowHtml", bySection("workflow"));
+      this._vm.setProperty("/cleanupHtml", bySection("cleanup"));
       this._vm.setProperty("/workforceHtml", bySection("workforce"));
     },
 

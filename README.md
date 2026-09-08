@@ -106,7 +106,9 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
 | Consumption CDS | `ZC_TWR_DIM_TEXT` (`DimensionText` — UNION over `T001`/`T500P`/`T501T`/`T549T`, code → business name) via `ZI_TWR_DIM_TEXT` | B ✅ |
 | Interface CDS | `ZI_TWR_WF_AGENT` (`SWWUSERWI` ⋈ `ZI_TWR_WORKITEM` — inbox owner + status per work item) | D ✅ |
 | Consumption CDS | `ZC_TWR_WF_THROUGHPUT` (raised/processed by date), `ZC_TWR_WF_BY_AGENT` (pending inbox count per agent), `ZC_TWR_WF_AGING` (open items by raised-date), `ZC_TWR_WF_BY_ACTUAL_AGENT` (processed per agent by date) | C/D ✅ |
-| Service | `ZTWR_UI_SRVD` (20 entities) + `ZTWR_UI_SRVB_O4` (OData V4 – UI, published) | all |
+| Interface CDS | `ZI_TWR_STALE_OBJ` (`E071` ⋈ `E070` ⋈ `TADIR` — custom Z*/Y* R3TR objects in a modifiable transport 6+ months old) | E 🔄 pending |
+| Consumption CDS | `ZC_TWR_STALE_OBJ` (list), `ZC_TWR_STALE_OBJ_BY_OWNER` / `ZC_TWR_STALE_OBJ_BY_TYPE` (GROUP BY) — the Custom Code Cleanup section | E 🔄 pending |
+| Service | `ZTWR_UI_SRVD` (23 entities) + `ZTWR_UI_SRVB_O4` (OData V4 – UI, published) | all |
 
 **Retired:**
 - `ZTWR_CFG_IFACE` + `ZI_TWR_CFG_IFACE` + `ZC_TWR_CFG_IFACE` — 2026-09-04, no custom config/catalog tables (D9).
