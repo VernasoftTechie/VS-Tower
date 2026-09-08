@@ -44,6 +44,9 @@ before the first activation, not after.
 11. CDS reserved word: `POSITION` (renamed `PositionId` on Employee-360; same
     rule applies here). Also avoid `CLIENT KEY USER LANGUAGE DATE TIME VALUE
     LEVEL NAME TYPE` as element names when in doubt.
+    *Recurred 2026-09-08:* `ZI_TWR_STALE_OBJ` shipped `as4pos as Position` and
+    activation failed system-wide ("POSITION is a reserved word"); fixed to
+    `ItemPos` (commit 5376ce6). Check this list before naming any key element.
 12. **No RAP behavior definition in this repo.** VS-Tower is read-only by
     decision (D1) — every `ZC_TWR_*` view is a **plain `select from`** query
     view, never `as projection on`, never a BDEF/behavior pool. This sidesteps
