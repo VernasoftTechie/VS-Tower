@@ -87,9 +87,7 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
 
 | Area | Objects | Stage |
 |---|---|---|
-| Interface CDS | `ZI_TWR_EMP_BASIC` (anchor — includes `PayrollArea`, `EmployeeGroup`, `EmployeeSubgroup`), `ZI_TWR_EMP_CONTACT`, `ZI_TWR_EMP_BANK`, `ZI_TWR_DQ_ISSUE` (5-branch check union) | 1 ✅ |
-| Consumption CDS | `ZC_TWR_DQ_ISSUE` (list), `ZC_TWR_DQ_SUMMARY` (donut by category) | 1 ✅ |
-| Interface CDS | `ZI_TWR_EMP_DUP_KEY` (helper — name+DOB match count) | 1 *(refined)* ✅ |
+| Interface CDS | `ZI_TWR_EMP_BASIC` (anchor over `PA0001` — `CompanyCode` / `PersonnelArea` / `PayrollArea` / `EmployeeGroup` / `EmployeeSubgroup`; feeds only the Workforce Context cards now) | 1 ✅ |
 | Interface CDS | `ZI_TWR_SEC_USER` (anchor, `USR02`) | 2 ✅ |
 | Consumption CDS | `ZC_TWR_SEC_USER` (list), `ZC_TWR_SEC_SUMMARY` (donut by lock status) | 2 ✅ |
 | Interface CDS | `ZI_TWR_BGJOB` (anchor, `TBTCO` — date/time fields are text, see T2; `Owner`/`SDLUNAME` added 2026-09-05 🔄 pending) | 3 ✅ |
@@ -99,27 +97,23 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
 | Interface CDS | `ZI_TWR_TRANSPORT` (anchor, `E070`, local system) | 4 ✅ |
 | Consumption CDS | `ZC_TWR_TRANSPORT` (list), `ZC_TWR_TRANSPORT_SUMMARY` (donut by status) | 4 ✅ |
 | Consumption CDS | `ZC_TWR_TRANSPORT_TYPE_SUMMARY` (donut by request type) | 4 *(refined)* ✅ |
-| Consumption CDS | `ZC_TWR_TRANSPORT_BY_OWNER` (`TransportByOwner` — open vs. released count per developer/consultant ID, manager ask) | 4 *(refined)* 🔄 pending |
-| Consumption CDS | `ZC_TWR_HEADCOUNT` (donut by company/personnel area — no new interface view, reuses Stage 1's `ZI_TWR_EMP_BASIC`) | 5 ✅ |
-| Consumption CDS | `ZC_TWR_HEADCOUNT_BY_GROUP` (donut by employee group/subgroup — same reuse) | 5 *(refined)* ✅ |
-| Consumption CDS | `ZC_TWR_PAYROLL_AREA` (donut by payroll area — no new interface view, reuses Stage 1's `ZI_TWR_EMP_BASIC`) | 6 ✅ |
-| Interface CDS | `ZI_TWR_WORKITEM` (anchor, `SWWWIHEAD` — extended with `WI_TEXT`/`WI_CD`/`WI_AED`/`WI_AAGENT` in Stage C) | 13 ✅ / C 🔄 |
-| Consumption CDS | `ZC_TWR_WORKITEM` (exposed as `WorkItemSet` — renamed post-T4), `ZC_TWR_WORKITEM_SUMMARY` (donut, type × status cross-tab) | 13 ✅ |
-| Consumption CDS | `ZC_TWR_DIM_TEXT` (`DimensionText` — UNION over `T001`/`T500P`/`T501T`/`T549T`, resolves company code / personnel area / employee group / payroll area codes to their business name) | B 🔄 pending |
-| Interface CDS | `ZI_TWR_WF_AGENT` (anchor, `SWWUSERWI` — inbox owner per work item) | D 🔄 pending |
-| Consumption CDS | `ZC_TWR_WF_THROUGHPUT` (raised/processed by date), `ZC_TWR_WF_BY_AGENT` (pending inbox count per agent), `ZC_TWR_WF_AGING` (open items by raised-date), `ZC_TWR_WF_BY_ACTUAL_AGENT` (processed count per agent, by date) — the Workflow section's date-range analytics | C/D 🔄 pending |
-| Service | `ZTWR_UI_SRVD` (exposes all of the above, 22 entities) + `ZTWR_UI_SRVB_O4` (OData V4 – UI, published, shipped in the repo) | 1–6, 13, B, C, D |
+| Consumption CDS | `ZC_TWR_TRANSPORT_BY_OWNER` (`TransportByOwner` — open vs. released count per developer/consultant ID, manager ask) | 4 *(refined)* ✅ |
+| Consumption CDS | `ZC_TWR_HEADCOUNT` (by company/personnel area — reuses `ZI_TWR_EMP_BASIC`) | 5 ✅ |
+| Consumption CDS | `ZC_TWR_HEADCOUNT_BY_GROUP` (by employee group/subgroup — same reuse) | 5 *(refined)* ✅ |
+| Consumption CDS | `ZC_TWR_PAYROLL_AREA` (by payroll area — same reuse) | 6 ✅ |
+| Interface CDS | `ZI_TWR_WORKITEM` (anchor, `SWWWIHEAD` — `WI_TEXT`/`WI_CD`/`WI_AED`/`WI_AAGENT`) | 13 / C ✅ |
+| Consumption CDS | `ZC_TWR_WORKITEM` (`WorkItemSet`), `ZC_TWR_WORKITEM_SUMMARY` | 13 ✅ |
+| Consumption CDS | `ZC_TWR_DIM_TEXT` (`DimensionText` — UNION over `T001`/`T500P`/`T501T`/`T549T`, code → business name) via `ZI_TWR_DIM_TEXT` | B ✅ |
+| Interface CDS | `ZI_TWR_WF_AGENT` (`SWWUSERWI` ⋈ `ZI_TWR_WORKITEM` — inbox owner + status per work item) | D ✅ |
+| Consumption CDS | `ZC_TWR_WF_THROUGHPUT` (raised/processed by date), `ZC_TWR_WF_BY_AGENT` (pending inbox count per agent), `ZC_TWR_WF_AGING` (open items by raised-date), `ZC_TWR_WF_BY_ACTUAL_AGENT` (processed per agent by date) | C/D ✅ |
+| Service | `ZTWR_UI_SRVD` (20 entities) + `ZTWR_UI_SRVB_O4` (OData V4 – UI, published) | all |
 
-**Retired:** `ZTWR_CFG_IFACE` (table) + `ZI_TWR_CFG_IFACE` + `ZC_TWR_CFG_IFACE`
-— removed from the repo 2026-09-04, client direction (no custom
-config/catalog tables). If the corresponding objects are still in the target
-system, a pull should have already offered to delete them.
+**Retired:**
+- `ZTWR_CFG_IFACE` + `ZI_TWR_CFG_IFACE` + `ZC_TWR_CFG_IFACE` — 2026-09-04, no custom config/catalog tables (D9).
+- **Data Quality (2026-09-08)** — `ZI_TWR_DQ_ISSUE`, `ZC_TWR_DQ_ISSUE`, `ZC_TWR_DQ_SUMMARY`, and the DQ-only helpers `ZI_TWR_EMP_CONTACT` / `ZI_TWR_EMP_BANK` / `ZI_TWR_EMP_DUP_KEY`. Employee master-data health is owned by **Employee 360** now; keeping the same checks here was duplication. `ZI_TWR_EMP_BASIC` was trimmed to just the org fields the Workforce cards use (the `PA0002` join and `CostCenter`/`PositionId` are gone). A pull should offer to delete the retired objects from the target system.
 
 No RAP behavior definition, no custom DDIC tables, no DCL — every object is a
-plain `define view entity … as select from`. Stage 1 checks: Missing Email,
-Missing Cost Center, Missing Position (proxy for Invalid Position), Missing
-Bank/IBAN, and now Duplicate Employee. Missing Manager is still deferred —
-see `docs/02_solution_architecture.md` §26.
+plain `define view entity … as select from`.
 
 ## ABAP/CDS layer: one small increment pending, everything else confirmed clean
 

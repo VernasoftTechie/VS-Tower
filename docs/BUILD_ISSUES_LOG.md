@@ -140,8 +140,8 @@ in this table is unverified on this system — check SE11 before using it.
 |---|---|
 | `PA0001` | `PERNR BUKRS WERKS BTRTL PERSG PERSK ORGEH KOSTL PLANS STELL BEGDA ENDDA` (no `STAT2/STAT1/STAT3` on this system — A11) |
 | `PA0002` | `PERNR NACHN VORNA GBDAT GESCH NATIO BEGDA ENDDA` |
-| `PA0105` | `PERNR SUBTY USRID_LONG BEGDA ENDDA` (subtype `0010` = email, `0020` = mobile) |
-| `PA0009` | `PERNR SUBTY BANKL BANKN BKONT IBAN BEGDA ENDDA` (subtype `0` = main bank) |
+| `PA0105` | `PERNR SUBTY USRID_LONG BEGDA ENDDA` (subtype `0010` = email, `0020` = mobile) — *DQ retired 2026-09-08; `ZI_TWR_EMP_CONTACT` removed, kept here as verified fact* |
+| `PA0009` | `PERNR SUBTY BANKL BANKN BKONT IBAN BEGDA ENDDA` (subtype `0` = main bank) — *DQ retired 2026-09-08; `ZI_TWR_EMP_BANK` removed, kept here as verified fact* |
 | `PA0006` | `PERNR SUBTY STRAS ORT01 PSTLZ LAND1 BEGDA ENDDA` (subtype `1` = permanent residence) |
 | `USR02` | `BNAME USTYP CLASS UFLAG ERDAT TRDAT GLTGV GLTGB` — field **names** all activated fine (T1 was a runtime rendering error, not an activation error). `USTYP` needs `cast( … as abap.char(1) )` before it reaches OData (T1). `CLASS` confirmed clean (renders, no conversion-exit error). |
 | `TBTCO` | `JOBNAME JOBCOUNT STATUS STRTDATE STRTTIME ENDDATE ENDTIME` — field **names** all confirmed clean. Proactive `STATUS` cast (applying T1 before it could recur) worked first try, no runtime error. `STRTDATE`/`STRTTIME`/`ENDDATE`/`ENDTIME` needed T2's fix (exposed as text, not `Edm.Date`/`Edm.TimeOfDay`) — that was a runtime-type issue, not a wrong field name. **`SDLUNAME` added 2026-09-05** (job-scheduler username, for the "who to contact" requirement) — same field class as `E070-AS4USER` (already confirmed clean, raw/uncast), high confidence, but **pending its own first activation** — not yet in the confirmed set until reported back. |

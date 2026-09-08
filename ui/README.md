@@ -164,7 +164,6 @@ every table lives; there are none on the page itself. A **Help** button
 | Section | Card | Chart | Drill-down shows |
 |---|---|---|---|
 | Live | Action Center | Bar, by domain | Every item across all domains, worst first, each with a **Contact** |
-| Live | Data Quality | Donut, by category | Recent issues with the readable issue text |
 | Live | Security | Donut, locked users by type | Locked usernames + type |
 | Live | Background Jobs (Health) | Donut, by status | Job / Status / **Scheduled By** (`SDLUNAME`) |
 | Live | Background Jobs by Owner | Bar, per scheduler | Same list, by owner |
@@ -178,12 +177,13 @@ every table lives; there are none on the page itself. A **Help** button
 | Context | Headcount by Company / Employee Group / Payroll Areas | Donut | Breakdown, codes shown with their business name |
 
 **Contact is only shown where the data actually has an owner.** Transport
-(`AS4USER`) and Background Jobs (`SDLUNAME`) get a real name. Security and
-Data Quality get a fixed team name instead of an invented per-record
-owner — locked user accounts and HR master-data issues aren't assigned to
-a consultant ID in the source tables, so showing one there would be
-reporting data that doesn't exist. Workflow shows an honest "not yet
-mapped" placeholder (needs `SWWUSERWI`, not built).
+(`AS4USER`) and Background Jobs (`SDLUNAME`) get a real name. Security gets
+a fixed team name — locked accounts aren't assigned to a consultant ID.
+Workflow now has real agents (`SWWUSERWI` inbox owner / `WI_AAGENT`).
+
+**Data Quality was removed 2026-09-08** — Employee 360 owns employee
+master-data health now. Replacement cards (system runtime health from
+short dumps; code quality from ATC) are in progress.
 
 "Recent Transport Requests" — now "Transport (Status)" — shows **only
 queued ones** (Modifiable or Released-not-yet-imported), filtered at the

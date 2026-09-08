@@ -21,11 +21,9 @@ sap.ui.define([
   // name first, so the same category keeps the same colour every refresh).
   var CAT = ["#0a6ed1", "#e9730c", "#925ace", "#147575", "#bb0044", "#6a6d70", "#c26b00", "#3b7a3b"];
 
-  // Small fixed-code label maps (the low-cardinality, stable ones). Anything
-  // client-specific or high-cardinality (company code, cost centre, ...)
-  // gets a real text view instead - see the staged plan in
+  // Small fixed-code label map. Anything client-specific or high-cardinality
+  // (company code, cost centre, ...) gets a real text view instead - see
   // docs/04_fiori_ui_design.md.
-  var SEV_LABEL = { C: "Critical", W: "Warning", I: "Info" };
   var TR_STATUS_LABEL = { D: "Modifiable", R: "Released" };
 
   return Controller.extend("vstower.controltower.controller.Dashboard", {
@@ -41,7 +39,6 @@ sap.ui.define([
       this._wfTo = oNow;
       this._wfFrom = new Date(oNow.getTime() - 30 * 86400000);
       this._vm = new JSONModel({
-        dq: { byCategory: [], recent: [] },
         security: { lockedUsers: [] },
         jobs: { health: [], byStatus: [] },
         transport: { byStatus: [], byOwner: [], recent: [] },
@@ -226,7 +223,6 @@ sap.ui.define([
         '<h4>The cards</h4>',
         '<table class="detail"><thead><tr><th>Card</th><th>What it shows</th></tr></thead><tbody>',
         this._helpRow("Action Center", "Everything needing attention across all domains below, worst first, each row with a contact to chase."),
-        this._helpRow("Data Quality", "Employee master-data gaps – missing bank details, cost centre, position, email, and duplicate employees."),
         this._helpRow("Security", "User accounts currently locked, split by user type. The list gives you the usernames to raise with Basis."),
         this._helpRow("Background Jobs – Health", "Jobs whose most recent run is not a clean finish (aborted, or still pending / running)."),
         this._helpRow("Background Jobs – by Owner", "The same jobs grouped by who scheduled them, so you can see whose jobs are stuck."),
@@ -292,7 +288,6 @@ sap.ui.define([
       this._liveRefreshing = true;
       this._setError("");
       return Promise.all([
-        this._loadDataQuality(),
         this._loadSecurity(),
         this._loadJobs(),
         this._loadTransport()
@@ -339,7 +334,6 @@ sap.ui.define([
       });
     },
 
-    _sevLabel: function (code) { return SEV_LABEL[code] || code || "-"; },
 
     _titleCase: function (s) {
       s = String(s || "");
@@ -393,18 +387,6 @@ sap.ui.define([
 
     _sum: function (rows, measureField) {
       return rows.reduce(function (t, r) { return t + this._num(r[measureField]); }.bind(this), 0);
-    },
-
-    _loadDataQuality: function () {
-      return Promise.all([
-        this._read("/DataQualitySummary"),
-        this._read("/DataQualityIssue", 50)
-      ]).then(function (res) {
-        var summary = res[0], recent = res[1];
-        this._vm.setProperty("/dq/byCategory", this._groupSum(summary, "Category", "IssueCount"));
-        recent.sort(function (a, b) { return this._num(b.SeverityCriticality) - this._num(a.SeverityCriticality); }.bind(this));
-        this._vm.setProperty("/dq/recent", recent.slice(0, 10));
-      }.bind(this));
     },
 
     _loadSecurity: function () {
@@ -571,15 +553,6 @@ sap.ui.define([
     _collectActionItems: function () {
       var vm = this._vm;
       var aItems = [];
-
-      (vm.getProperty("/dq/recent") || []).forEach(function (r) {
-        aItems.push({
-          domain: "Data Quality", item: r.EmployeeID,
-          detail: r.IssueDescription || [r.CheckID, r.FieldName].filter(Boolean).join(" - "),
-          status: this._sevLabel(r.Severity), criticality: this._num(r.SeverityCriticality) || 2,
-          contact: "HR Master Data Team"
-        });
-      }.bind(this));
 
       (vm.getProperty("/security/lockedUsers") || []).forEach(function (u) {
         aItems.push({
@@ -778,10 +751,6 @@ sap.ui.define([
     _collectCards: function () {
       var vm = this._vm, esc = this._esc.bind(this), byName = this._byName;
 
-      var dqCat = (vm.getProperty("/dq/byCategory") || []).slice().sort(byName);
-      var dqTotal = this._sum(dqCat, "value");
-      var dqRecent = vm.getProperty("/dq/recent") || [];
-
       var lockedUsers = vm.getProperty("/security/lockedUsers") || [];
       var secByType = this._countBy(lockedUsers, "UserType").sort(byName);
 
@@ -863,18 +832,6 @@ sap.ui.define([
         detailCols: [this._i18n.getText("colDomain"), this._i18n.getText("colItem"), this._i18n.getText("colDetail"), this._i18n.getText("colStatus"), this._i18n.getText("colContact")],
         detailRows: actionItems.map(function (a) {
           return [esc(a.domain), esc(a.item), esc(a.detail), this._statusChip(a.criticality, a.status), esc(a.contact)];
-        }.bind(this))
-      });
-
-      cards.push({
-        section: "live", id: "dq", attn: dqTotal > 0,
-        title: this._i18n.getText("cardDq"), sub: this._i18n.getText("cardDqSub"),
-        kpi: dqTotal, kpiLabel: this._i18n.getText("kpiDqLabel"),
-        chartType: "donut", data: dqCat,
-        insight: this._topInsight(dqCat, dqTotal),
-        detailCols: [this._i18n.getText("colEmployee"), this._i18n.getText("colIssue"), this._i18n.getText("colField"), this._i18n.getText("colStatus")],
-        detailRows: dqRecent.map(function (r) {
-          return [esc(r.EmployeeID), esc(r.IssueDescription || r.CheckID), esc(r.FieldName), this._statusChip(this._num(r.SeverityCriticality), this._sevLabel(r.Severity))];
         }.bind(this))
       });
 

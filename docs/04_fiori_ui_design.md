@@ -37,7 +37,18 @@ example, or simply asking whoever owns the Fiori/BTP side), rebuilding this
 as a declarative OVP app instead of the current hand-written one is a
 reasonable follow-up — the CDS layer needs no changes either way.
 
-## 2. Card map — superseded again, see the 2026-09-05 box
+## 2. Card map — superseded again, see the boxes below
+
+> **Update, 2026-09-08: Data Quality retired.** Employee master-data health
+> is owned by Employee 360 now, so the DQ card and its CDS
+> (`ZI_TWR_DQ_ISSUE` / `ZC_TWR_DQ_ISSUE` / `ZC_TWR_DQ_SUMMARY` + the
+> `EMP_CONTACT`/`EMP_BANK`/`EMP_DUP_KEY` helpers) were removed. Three
+> sections now: Live (Action Center, Security, Background Jobs ×2,
+> Transport ×2), Workflow (date-range: throughput, by status, pending by
+> approver, aging, cleared by agent), Workforce Context (headcount ×3, as a
+> ranked list). Replacements for the freed slot — system runtime health
+> (short dumps) and code quality (ATC findings) — in progress, pending
+> `SNAP` / `SATC_*` field confirmation.
 
 > **Update, 2026-09-05: rebuilt as a compact chart-only grid with
 > click-to-drill-down.** The client asked to see the design before any code
