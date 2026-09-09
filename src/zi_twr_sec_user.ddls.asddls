@@ -30,5 +30,21 @@ define view entity ZI_TWR_SEC_USER
       cast( case when uflag = 0 then 3 else 1 end as abap.int4 ) as LockCriticality,
       cast( erdat as abap.dats )                      as CreatedOnDate,
       cast( trdat as abap.dats )                      as LastPasswordChangeDate,
+      cast( trdat as abap.dats )                      as LastLogonDate,
+      // last-logon recency bucket for the "Active IDs" card - CASE lives here
+      // in the interface view (rule #14); the summary groups by the plain
+      // field. dats_days_between in a SELECT-list expression is fine (rule #27
+      // is only about WHERE). 'trdat is initial' short-circuits before the
+      // function is called on a blank date. Each branch is cast to the same
+      // char(10) so the CASE has one unambiguous result type.
+      case
+        when trdat is initial
+          then cast( 'Never' as abap.char( 10 ) )
+        when dats_days_between( trdat, $session.system_date ) <= 30
+          then cast( '0-30 days' as abap.char( 10 ) )
+        when dats_days_between( trdat, $session.system_date ) <= 90
+          then cast( '31-90 days' as abap.char( 10 ) )
+        else cast( '90+ days' as abap.char( 10 ) )
+      end                                              as LogonRecency,
       cast( gltgb as abap.dats )                      as ValidToDate
 }

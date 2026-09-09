@@ -88,8 +88,8 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
 | Area | Objects | Stage |
 |---|---|---|
 | Interface CDS | `ZI_TWR_EMP_BASIC` (anchor over `PA0001` — `CompanyCode` / `PersonnelArea` / `PayrollArea` / `EmployeeGroup` / `EmployeeSubgroup`; feeds only the Workforce Context cards now) | 1 ✅ |
-| Interface CDS | `ZI_TWR_SEC_USER` (anchor, `USR02`) | 2 ✅ |
-| Consumption CDS | `ZC_TWR_SEC_USER` (list), `ZC_TWR_SEC_SUMMARY` (donut by lock status) | 2 ✅ |
+| Interface CDS | `ZI_TWR_SEC_USER` (anchor, `USR02` — `LastLogonDate` / `LogonRecency` bucket added 2026-09-09 🔄) | 2 ✅ |
+| Consumption CDS | `ZC_TWR_SEC_USER` (list), `ZC_TWR_SEC_SUMMARY` (donut by lock status), `ZC_TWR_SEC_ACTIVE` (active IDs by type × last-logon 🔄) | 2 ✅ |
 | Interface CDS | `ZI_TWR_BGJOB` (anchor, `TBTCO` — date/time fields are text, see T2; `Owner`/`SDLUNAME` added 2026-09-05 🔄 pending) | 3 ✅ |
 | Consumption CDS | `ZC_TWR_BGJOB` (exposed as `BackgroundJobHistory`), `ZC_TWR_BGJOB_SUMMARY` (`BackgroundJobHistorySummary`) — full run history, unchanged | 3 ✅ |
 | Interface CDS | `ZI_TWR_BGJOB_LATEST` (helper — `MAX(JobCount)` per job name), `ZI_TWR_BGJOB_HEALTH` (self-join, pending/error only) | 3 *(refined)* ✅ |
@@ -108,18 +108,21 @@ operations, built on S/4HANA On-Premise with CDS + read-only RAP + OData V4.
 | Consumption CDS | `ZC_TWR_WF_THROUGHPUT` (raised/processed by date), `ZC_TWR_WF_BY_AGENT` (pending inbox count per agent), `ZC_TWR_WF_AGING` (open items by raised-date), `ZC_TWR_WF_BY_ACTUAL_AGENT` (processed per agent by date) | C/D ✅ |
 | Interface CDS | `ZI_TWR_STALE_OBJ` (`E071` ⋈ `E070` ⋈ `TADIR` — custom Z*/Y* R3TR objects in a modifiable transport 6+ months old) | E 🔄 pending |
 | Consumption CDS | `ZC_TWR_STALE_OBJ` (list), `ZC_TWR_STALE_OBJ_BY_OWNER` / `ZC_TWR_STALE_OBJ_BY_TYPE` (GROUP BY) — the Custom Code Cleanup section | E 🔄 pending |
-| Custom entity + class | `ZC_TWR_SHORTDUMP` (RAP custom entity) + `ZCL_TWR_SHORTDUMP_QRY` (`IF_RAP_QUERY_PROVIDER`) — ABAP short dumps (`SNAP`, unreadable by CDS); read-only, the **only** ABAP class in the repo (D1 relaxed once) | F 🔄 pending |
-| Service | `ZTWR_UI_SRVD` (24 entities) + `ZTWR_UI_SRVB_O4` (OData V4 – UI, published) | all |
+| Consumption CDS | `ZC_TWR_LOCKED_OBJ` (list), `ZC_TWR_LOCKED_OBJ_BY_OWNER` (GROUP BY) — objects checked out in an open transport; plain views over `ZI_TWR_STALE_OBJ`, no age filter | G 🔄 pending |
+| Custom entity + class | `ZC_TWR_SHORTDUMP` + `ZCL_TWR_SHORTDUMP_QRY` — ABAP short dumps (`SNAP`); read-only `IF_RAP_QUERY_PROVIDER` | F 🔄 pending |
+| Custom entity + class | `ZC_TWR_AUTH_FAIL` + `ZCL_TWR_AUTHFAIL_QRY` — failed-auth events (Security Audit Log); read-only, best-effort `RSAU_READ_LOG`. The **second and last** ABAP class (D1) | G 🔄 pending |
+| Service | `ZTWR_UI_SRVD` (28 entities) + `ZTWR_UI_SRVB_O4` (OData V4 – UI, published) | all |
 
 **Retired:**
 - `ZTWR_CFG_IFACE` + `ZI_TWR_CFG_IFACE` + `ZC_TWR_CFG_IFACE` — 2026-09-04, no custom config/catalog tables (D9).
 - **Data Quality (2026-09-08)** — `ZI_TWR_DQ_ISSUE`, `ZC_TWR_DQ_ISSUE`, `ZC_TWR_DQ_SUMMARY`, and the DQ-only helpers `ZI_TWR_EMP_CONTACT` / `ZI_TWR_EMP_BANK` / `ZI_TWR_EMP_DUP_KEY`. Employee master-data health is owned by **Employee 360** now; keeping the same checks here was duplication. `ZI_TWR_EMP_BASIC` was trimmed to just the org fields the Workforce cards use (the `PA0002` join and `CostCenter`/`PositionId` are gone). A pull should offer to delete the retired objects from the target system.
 
 No RAP behavior definition, no custom DDIC tables, no DCL. Every CDS object is a
-plain `define view entity … as select from`. The single exception is
-`ZC_TWR_SHORTDUMP` — a `define custom entity` whose query is implemented by
-`ZCL_TWR_SHORTDUMP_QRY` (read-only `IF_RAP_QUERY_PROVIDER`, added 2026-09-08
-because `SNAP` is a clustered table Open SQL / CDS cannot read).
+plain `define view entity … as select from`, except **two** `define custom
+entity` + read-only `IF_RAP_QUERY_PROVIDER` pairs for stores no CDS can read:
+`ZC_TWR_SHORTDUMP` / `ZCL_TWR_SHORTDUMP_QRY` (table `SNAP`, 2026-09-08) and
+`ZC_TWR_AUTH_FAIL` / `ZCL_TWR_AUTHFAIL_QRY` (Security Audit Log, 2026-09-09).
+Those are the only ABAP classes and there will be no more (D1).
 
 ## ABAP/CDS layer: one small increment pending, everything else confirmed clean
 

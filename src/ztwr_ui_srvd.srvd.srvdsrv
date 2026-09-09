@@ -2,6 +2,7 @@
 define service ZTWR_UI_SRVD {
   expose ZC_TWR_SEC_USER            as SecurityUser;
   expose ZC_TWR_SEC_SUMMARY         as SecuritySummary;
+  expose ZC_TWR_SEC_ACTIVE          as SecurityActive;
   expose ZC_TWR_BGJOB_HEALTH        as BackgroundJobHealth;
   expose ZC_TWR_BGJOB_HEALTH_SUMMARY as BackgroundJobHealthSummary;
   expose ZC_TWR_BGJOB               as BackgroundJobHistory;
@@ -24,4 +25,7 @@ define service ZTWR_UI_SRVD {
   expose ZC_TWR_STALE_OBJ_BY_OWNER  as StaleObjectByOwner;
   expose ZC_TWR_STALE_OBJ_BY_TYPE   as StaleObjectByType;
   expose ZC_TWR_SHORTDUMP           as ShortDump;
+  expose ZC_TWR_LOCKED_OBJ          as LockedObject;
+  expose ZC_TWR_LOCKED_OBJ_BY_OWNER as LockedObjectByOwner;
+  expose ZC_TWR_AUTH_FAIL           as AuthFailure;
 }

@@ -66,7 +66,10 @@ sap.ui.define([
       this._sdTo = oNow;
       this._sdFrom = new Date(oNow.getTime() - 7 * 86400000);
       this._vm = new JSONModel({
-        security: { lockedUsers: [] },
+        security: {
+          lockedUsers: [], active: [],
+          lockedObjByOwner: [], lockedObjList: [], authFails: []
+        },
         jobs: { health: [], byStatus: [] },
         transport: { byStatus: [], byOwner: [], recent: [] },
         workforce: { byArea: [], byGroup: [], byPayrollArea: [] },
@@ -115,9 +118,11 @@ sap.ui.define([
       if (this._helpDialog) { this._helpDialog.destroy(); }
     },
 
-    // Header refresh button - reload everything.
+    // Header refresh button - reload everything, bypassing the throttles.
     onRefresh: function () {
       this.getView().getModel("odata").refresh();
+      this._stabilityNextFetch = 0;
+      this._secExtraNextFetch = 0;
       this._loadLive();
       this._loadWorkflowSection();
       this._loadContext();
@@ -259,9 +264,10 @@ sap.ui.define([
         '<h4>How the page is organised</h4>',
         '<p>Five sections, top to bottom. Each one says how fresh its data is.</p>',
         '<ul>',
-        '<li><b>Live</b> – current-state cards: Action Center, Security, Background',
-        ' Jobs, Transport. Refreshes itself <b>every 5 seconds</b> (the switch in the',
-        ' top bar pauses it). Use this for "what needs a look right now".',
+        '<li><b>Live</b> – current-state cards. Refreshes itself <b>every 5 seconds</b>',
+        ' (the switch in the top bar pauses it). Use this for "what needs a look right now".',
+        ' It covers the Action Center, four <b>Security</b> cards (Locked Users, Active',
+        ' User IDs, Locked Objects, Failed Auth Attempts), Background Jobs, and Transport.',
         ' The <b>Short Dumps</b> cards sit at the end of this section with their own',
         ' <b>date range + user filter</b> (default: last 7 days, all users) – they read',
         ' the ABAP runtime-error log (ST22 / table SNAP), which no normal report or',
@@ -306,7 +312,10 @@ sap.ui.define([
         '<h4>The cards</h4>',
         '<table class="detail"><thead><tr><th>Card</th><th>What it shows</th></tr></thead><tbody>',
         this._helpRow("Action Center", "Everything needing attention across all domains below, worst first, each row with a contact to chase."),
-        this._helpRow("Security", "User accounts currently locked, split by user type. The list gives you the usernames to raise with Basis."),
+        this._helpRow("Locked Users", "User accounts locked right now, split by user type. The list gives you the usernames to raise with Basis."),
+        this._helpRow("Active User IDs", "Unlocked accounts, by user type and how recently each logged on (0-30 / 31-90 / 90+ days / Never). For scoping who is actually using the system."),
+        this._helpRow("Locked Objects", "Custom Z*/Y* repository objects currently checked out in an open (modifiable) transport, grouped by who holds the lock - so you know what not to touch. Drill-down: object, owner, request, date."),
+        this._helpRow("Failed Auth Attempts", "Failed-authorization / blocked-transaction events from the Security Audit Log (last 14 days), by user. If empty, the audit log is not active (SM19) or not readable here."),
         this._helpRow("Background Jobs – Health", "Jobs whose most recent run is not a clean finish (aborted, or still pending / running)."),
         this._helpRow("Background Jobs – by Owner", "The same jobs grouped by who scheduled them, so you can see whose jobs are stuck."),
         this._helpRow("Transport – Status", "Transport requests still in the landscape (Modifiable, or Released but not yet imported). Ones already moved on are not shown."),
@@ -341,6 +350,9 @@ sap.ui.define([
         '<li><b>Short-dump text</b> – the runtime-error name / short text / program are',
         ' read best-effort from the ST22 reader. Where a row shows "–", that reader',
         ' is not wired for this system\'s release yet.</li>',
+        '<li><b>Failed Auth Attempts</b> – read best-effort from the Security Audit Log.',
+        ' An empty card means the audit log is not active or not readable, not that',
+        ' there were no failures.</li>',
         '<li><b>Interfaces and other areas</b> – planned for a later phase.</li>',
         '</ul>',
 
@@ -381,6 +393,7 @@ sap.ui.define([
       this._setError("");
       return Promise.all([
         this._loadSecurity(),
+        this._maybeLoadSecurityExtra(),
         this._loadJobs(),
         this._loadTransport(),
         this._maybeLoadStability()
@@ -553,13 +566,35 @@ sap.ui.define([
       return rows.reduce(function (t, r) { return t + this._num(r[measureField]); }.bind(this), 0);
     },
 
+    // Locked accounts - cheap, stays on the 5s live tick.
     _loadSecurity: function () {
-      // Only locked accounts, straight from the service - a manager needs the
-      // names to reach out to, not a 4,000+ row dump.
-      return this._read("/SecurityUser", 100, [new Filter("IsLocked", FilterOperator.EQ, "X")])
+      return this._read("/SecurityUser", 200, [new Filter("IsLocked", FilterOperator.EQ, "X")])
         .then(function (lockedUsers) {
           this._vm.setProperty("/security/lockedUsers", lockedUsers);
-        }.bind(this));
+        }.bind(this)).catch(function () { /* keep last */ });
+    },
+
+    // Active IDs / locked objects / auth failures - heavier (the SAL read
+    // hits a reader FM), throttled to once a minute like the short dumps.
+    _maybeLoadSecurityExtra: function () {
+      var now = Date.now();
+      if (this._secExtraNextFetch && now < this._secExtraNextFetch) {
+        return Promise.resolve();
+      }
+      this._secExtraNextFetch = now + 60000;
+      return Promise.all([
+        this._read("/SecurityActive").catch(function () { return []; }),
+        this._read("/LockedObjectByOwner").catch(function () { return []; }),
+        this._read("/LockedObject", 1000).catch(function () { return []; }),
+        this._read("/AuthFailure", 1000).catch(function () { return []; })
+      ]).then(function (res) {
+        this._vm.setProperty("/security/active", res[0]);
+        this._vm.setProperty("/security/lockedObjByOwner", res[1]);
+        this._vm.setProperty("/security/lockedObjList", res[2]);
+        this._vm.setProperty("/security/authFails", res[3]);
+      }.bind(this)).catch(function () {
+        this._secExtraNextFetch = 0;
+      }.bind(this));
     },
 
     _loadJobs: function () {
@@ -726,6 +761,16 @@ sap.ui.define([
           contact: "Basis / Security Team"
         });
       });
+
+      (vm.getProperty("/security/authFails") || []).slice(0, 20).forEach(function (a) {
+        aItems.push({
+          domain: "Auth Failures", item: this._userName(a.FailUser),
+          detail: (a.FailText || "Authorization check failed") +
+            (a.FailTCode ? " (" + a.FailTCode + ")" : "") + " - " + this._fmtTstamp(a.EventTimestamp),
+          status: "Blocked", criticality: 2,
+          contact: this._userName(a.FailUser) + " / Basis - Security"
+        });
+      }.bind(this));
 
       (vm.getProperty("/jobs/health") || []).forEach(function (j) {
         aItems.push({
@@ -952,6 +997,50 @@ sap.ui.define([
       var lockedUsers = vm.getProperty("/security/lockedUsers") || [];
       var secByType = this._countBy(lockedUsers, "UserType").sort(byName);
 
+      // Active IDs - unlocked USR02 accounts, by user type x last-logon bucket.
+      // LogonRecency is a char(10) - trim so string compares / labels are clean
+      // whether or not the gateway trims trailing spaces at that width.
+      var secActiveRaw = (vm.getProperty("/security/active") || []).map(function (r) {
+        return {
+          UserType: String(r.UserType || "").trim(),
+          LogonRecency: String(r.LogonRecency || "").trim(),
+          UserCount: r.UserCount
+        };
+      });
+      var secActiveByType = this._groupSum(secActiveRaw, "UserType", "UserCount").sort(byName);
+      var secActiveTotal = this._sum(secActiveByType, "value");
+      var secActiveRecent = secActiveRaw.reduce(function (t, r) {
+        return t + (r.LogonRecency === "0-30 days" ? this._num(r.UserCount) : 0);
+      }.bind(this), 0);
+      var secActiveRows = secActiveRaw.slice().sort(function (a, b) {
+        return String(a.UserType + a.LogonRecency).localeCompare(String(b.UserType + b.LogonRecency));
+      }).map(function (r) {
+        return [esc(r.UserType), esc(r.LogonRecency), this._num(r.UserCount).toLocaleString()];
+      }.bind(this));
+
+      // Locked repository objects - custom objects checked out in an open transport
+      var secLockedByOwner = (vm.getProperty("/security/lockedObjByOwner") || []).map(function (r) {
+        return { owner: this._userName(r.TransportOwner), open: this._num(r.ObjectCount), released: 0 };
+      }.bind(this)).sort(function (a, b) { return b.open - a.open; });
+      var secLockedTotal = secLockedByOwner.reduce(function (t, r) { return t + r.open; }, 0);
+      var secLockedRows = (vm.getProperty("/security/lockedObjList") || []).slice().sort(function (a, b) {
+        return String(a.TransportOwner || "").localeCompare(String(b.TransportOwner || ""));
+      }).map(function (r) {
+        return [esc(this._objTypeText(r.ObjectType)), esc(r.ObjectName), esc(this._userName(r.TransportOwner)),
+          esc(r.TransportRequest), esc(this._fmtYmd(r.ChangedOn))];
+      }.bind(this));
+
+      // Failed authorization attempts - Security Audit Log, best-effort
+      var secAuthRaw = vm.getProperty("/security/authFails") || [];
+      var secAuthByUser = this._ownerAgg(secAuthRaw, "FailUser");
+      var secAuthTotal = secAuthRaw.length;
+      var secAuthRows = secAuthRaw.slice().sort(function (a, b) {
+        return String(b.EventTimestamp || "").localeCompare(String(a.EventTimestamp || ""));
+      }).map(function (r) {
+        return [esc(this._fmtTstamp(r.EventTimestamp)), esc(this._userName(r.FailUser)),
+          esc(r.FailTCode || "-"), esc(r.FailText || "-"), esc(r.FailTerminal || "-")];
+      }.bind(this));
+
       var jobsHealth = vm.getProperty("/jobs/health") || [];
       var jobsByStatus = (vm.getProperty("/jobs/byStatus") || []).slice().sort(byName);
       var jobsTotal = this._sum(jobsByStatus, "value");
@@ -1043,6 +1132,44 @@ sap.ui.define([
         detailRows: lockedUsers.map(function (u) {
           return [esc(u.Username), esc(u.UserType), "Basis / Security Team"];
         })
+      });
+
+      cards.push({
+        section: "live", id: "sec-active", attn: false,
+        title: this._i18n.getText("cardSecActive"), sub: this._i18n.getText("cardSecActiveSub"),
+        kpi: secActiveTotal, kpiLabel: this._i18n.getText("kpiSecActive"),
+        chartType: "donut", data: secActiveByType,
+        insight: secActiveTotal === 0
+          ? this._i18n.getText("noData")
+          : "<b>" + secActiveRecent.toLocaleString() + "</b> of <b>" + secActiveTotal.toLocaleString() +
+            "</b> active IDs logged on in the last 30 days.",
+        detailCols: [this._i18n.getText("colType"), this._i18n.getText("colLastLogon"), this._i18n.getText("colCount")],
+        detailRows: secActiveRows
+      });
+
+      cards.push({
+        section: "live", id: "sec-locked-obj",
+        attn: secLockedByOwner.length > 0 && secLockedByOwner[0].open > 0,
+        title: this._i18n.getText("cardSecLockedObj"), sub: this._i18n.getText("cardSecLockedObjSub"),
+        kpi: secLockedTotal, kpiLabel: this._i18n.getText("kpiSecLockedObj"),
+        chartType: "bar", data: secLockedByOwner,
+        insight: this._ownerInsight(secLockedByOwner, "objects"),
+        detailCols: [this._i18n.getText("colType"), this._i18n.getText("colObject"), this._i18n.getText("colOwner"),
+          this._i18n.getText("colRequest"), this._i18n.getText("colRequestDate")],
+        detailRows: secLockedRows
+      });
+
+      cards.push({
+        section: "live", id: "sec-auth", attn: secAuthTotal > 0,
+        title: this._i18n.getText("cardSecAuth"), sub: this._i18n.getText("cardSecAuthSub"),
+        kpi: secAuthTotal, kpiLabel: this._i18n.getText("kpiSecAuth"),
+        chartType: "bar", data: secAuthByUser,
+        insight: secAuthTotal === 0
+          ? this._i18n.getText("secAuthEmpty")
+          : this._ownerInsight(secAuthByUser, "attempts"),
+        detailCols: [this._i18n.getText("colWhen"), this._i18n.getText("colUsername"),
+          this._i18n.getText("colTransaction"), this._i18n.getText("colBlocked"), this._i18n.getText("colTerminal")],
+        detailRows: secAuthRows
       });
 
       cards.push({

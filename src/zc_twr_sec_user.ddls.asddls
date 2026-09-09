@@ -38,6 +38,12 @@ define view entity ZC_TWR_SEC_USER
       @UI.identification: [{ position: 60 }]
       LastPasswordChangeDate,
 
+      @UI.lineItem:       [{ position: 65 }]
+      LastLogonDate,
+
+      @UI.lineItem:       [{ position: 66 }]
+      LogonRecency,
+
       @UI.lineItem:       [{ position: 70 }]
       @UI.identification: [{ position: 70 }]
       ValidToDate
